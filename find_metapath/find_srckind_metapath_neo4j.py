@@ -16,6 +16,12 @@ from openai_root_cause_locator import build_prompt_template
 import json
 from common.openai_generic_assistant import OpenAIGenericAssistant
 
+from datetime import datetime
+
+def date_suffix():
+    now = datetime.now()
+    suffix = now.strftime("-%m%d-%H%M")
+    return suffix
 
 def setup_root_cause_locator():
     instructions = """As an AI expert in Kubernetes (k8s) systems, you are equipped to understand the various components and API resources involved within a k8s cluster environment, as well as the external systems with which k8s interacts. Your expertise lies in analyzing k8s architectures and providing insightful diagnostic interpretations of the issues these systems might face.
@@ -44,14 +50,16 @@ Keep your output user-friendly and accessible for various skill levels— offer 
 
 Remember to approach each situation as unique, using the information given to you in the error message as a starting point for your expert analysis."""
 
-    name = 'k8s-root-cause-locator'
+    name = 'k8s-root-cause-locator' + date_suffix()
 
     rootCauseLocator = OpenAIGenericAssistant()
     rootCauseLocator.create_assistant(instructions, name, 'gpt-4')
     rootCauseLocator.create_thread()
-    #rootCauseLocator.retrieve_assistant(assistant_id='asst_RH9XJ35MOG0oaE5cdJwOWaDi')
-    #rootCauseLocator.retrieve_thread(thread_id='thread_GtGvCyukMtkvZLyDrvaRiD9x')
+    
+    #rootCauseLocator.retrieve_assistant(assistant_id='asst_4bnrua5ShN88m4MblGtnUSjZ')
+    #rootCauseLocator.retrieve_thread(thread_id='thread_HCqe6ol9XYeQSfL06VG6D1Ne')
 
+    print(name)
     print(rootCauseLocator.assistant.id)
     print(rootCauseLocator.thread.id)
     print(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}')
@@ -90,7 +98,7 @@ def find_srcKind(query_executor, message):
     return srcKind
 
 
-def find_metapath(query_executor, srcKind, destKind, intermediateKinds=None):
+def find_metapath(query_executor, srcKind, destKind, intermediateKinds=[]):
     # query with directed graph, support null intermeditateKinds
     query_directed = """
         MATCH path = (n1)-[*1..3]->(n2)
@@ -151,13 +159,32 @@ def find_metapath(query_executor, srcKind, destKind, intermediateKinds=None):
     
     # if there are many paths with different lenghts, we prefer the shortest paths (can be more than one path)
     minLen = min([len(record['path']) for record in records])
-    metapaths = [record['path'] for record in records if len(record['path']) == minLen]
+    #metapaths = [record['path'] for record in records if len(record['path']) == minLen]
     
+    # we further filter out the evnFrom keys
+    records2 = [record['path'] for record in records if len(record['path']) == minLen]
+    metapaths = ad_hoc_filter_keys(records2)
+
     # Here's how we process and print the paths
     for mp in metapaths:
         print_metapath(path=mp)
     
     return metapaths
+
+# we will remove these two keys later in metagraph and stategraph
+def ad_hoc_filter_keys(records):
+    res = []
+    for record in records:
+        discard = False
+        for rel in record.relationships:
+            if rel['key'] in ['spec_containers_envFrom_configMapRef_name', 'spec_containers_envFrom_secretRef_name']:
+                discard = True
+                print(f"we will discard {rel['key']} \n")
+                break
+        if discard == False:
+            res.append(record)
+    return res
+
 
 def print_metapath(path):
     nodes = path.nodes
@@ -196,46 +223,36 @@ def extract_json(message_str):
     return json_data
 
 
-
 def build_prompt_template(nativeKinds, externalKinds):
     # limit the kinds within the k8s-api-resource and k8s-external-resource kinds in metagraph
-    prefix = (
-        "The predefined k8s API resource kinds and external resource kinds are the following:\n\n"
-        "k8s-api-resource-kinds: {native}\n\n"
-        "k8s-external-resource-kinds: {external}\n\n"
-    ).format(
-        native = ', '.join(nativeKinds),
-        external = ', '.join(externalKinds)
-    )
+    prefix = f"""The predefined k8s API resource kinds and external resource kinds are the following:\n\
+k8s-api-resource-kinds: {nativeKinds}\n\
+k8s-external-resource-kinds: {externalKinds}\n\
+for the external kinds, firstly focus on ['nfs', 'container', 'image', 'hostPath'], then for other kinds\n
+"""
 
     # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
-    requirement = (
-        "Perform an analysis on the Kubernetes error message that mentions a {involved_object}. "
-        "Follow these steps to prepare the analysis:\n\n"
-        "1. Recognize the {involved_object} as the starting point of the issue.\n"
-        "2. Determine the 'destKind' within specified k8s API resource kinds and k8s external resource kinds "
-        "that provides a resolution to the problem.\n"
-        "3. Enumerate the most critical k8s API and external resources relevant to the matter "
-        "within the predefined kinds.\n"
-        "4. Chart the primary progression from {involved_object} to 'destKind', including the most relevant "
-        "resources as waypoints.\n"
-        "5. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. The JSON output should not contain additional descriptions and must follow the given structure:\n"
-        "```json"
-        "{{\n"
-        "    'SourceKind': {involved_object},\n"
-        "    'DestinationKind': 'destKind', // 'destKind' must be from the predefined resource kinds list\n"
-        "    'RelevantResources': ['Resource1', 'Resource2', ..., {involved_object}, 'destKind'],\n"
-        "    'PrimaryPath': [\n"
-        "                    {{'Edge': 1, 'start': '{involved_object}', 'end': 'Resource1'}},\n"
-        "                    {{'Edge': 2, 'start': 'Resource1', 'end': 'Resource2'}},\n"
-        "                    ...\n"
-        "                    {{'Edge': n, 'start': 'Resource(n-1)', 'end': 'destKind'}}\n"
-        "                    ]\n"
-        "}}\n"
-        "```"
-        "Analyze the following error message ensuring 'destKind' and 'Resources-x' are strictly limited to the provided lists:\n\n"
-        "{error_message}\n"
-    )
-
+    requirement ="""Perform an analysis on the Kubernetes error message that mentions a {involved_object}.\n
+Follow these steps to prepare the analysis:\n
+1. Recognize the {involved_object} as the starting point of the issue.\n
+2. Determine the 'destKind' within specified k8s API resource kinds and k8s external resource kinds that provides a resolution to the problem, provide only one 'destKind' and ensure it is different from {involved_object}.\n
+3. Enumerate the most critical k8s API and external resources relevant to the matter within the predefined kinds.\n
+4. Chart the primary progression from {involved_object} to 'destKind', including the most relevant resources as waypoints.\n
+5. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:\n
+    ```json
+        {{\n
+            "SourceKind": {involved_object},\n
+            "DestinationKind": "destKind", // "destKind" must be from the predefined resource kinds list\n
+            "RelevantResources": ["Resource1", "Resource2", ..., {involved_object}, "destKind"],\n
+            "PrimaryPath": [\n
+                            {{"Edge": 1, "start": "{involved_object}", "end": "Resource1"}},\n
+                            {{"Edge": 2, "start": "Resource1", "end": "Resource2"}},\n
+                            ...\n
+                            {{"Edge": n, "start": "Resource(n-1)", "end": "destKind"}}\n
+                            ]\n
+        }}\n
+    ```
+Analyze the following error message ensuring 'destKind' and 'Resources-x' are strictly limited to the provided lists:\n
+{error_message}\n
+"""
     return prefix + requirement
-

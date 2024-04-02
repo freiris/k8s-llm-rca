@@ -15,19 +15,25 @@ from openai_cypher_query_generator import build_generation_template
 
 from common.openai_generic_assistant import OpenAIGenericAssistant
 
+from datetime import datetime
+
+def date_suffix():
+    now = datetime.now()
+    suffix = now.strftime("-%m%d-%H%M")
+    return suffix
+
 def setup_cypher_generator():
-    instructions="You are an expert in neo4j and cypher query language."
-    name="cypher-query-generator"
+    instructions = "You are an expert in neo4j and cypher query language."
+    name = "cypher-query-generator" + date_suffix()
+
     cypherQueryGenerator = OpenAIGenericAssistant()
     cypherQueryGenerator.create_assistant(instructions, name, 'gpt-4')
     cypherQueryGenerator.create_thread()
-   
-    #cypherQueryGenerator.retrieve_assistant(assistant_id="asst_m8xzRVAXj0feSEnkK4mMeuVs")
-    #cypherQueryGenerator.retrieve_thread(thread_id="thread_yc9ndUIXbv3b5P3CeGXcvVsE")
 
-    #cypherQueryGenerator.retrieve_assistant(assistant_id="asst_QED7U180yYfB1sBiOkGN9QCP")
-    #cypherQueryGenerator.retrieve_thread(thread_id="thread_8g8SuEWW2aXnTbswJMSsUMms")
+    #cypherQueryGenerator.retrieve_assistant(assistant_id='asst_E5D7WuCNELjYtYQgMdnABOvE')
+    #cypherQueryGenerator.retrieve_thread(thread_id='thread_1jXB73xECN7ExyNElcUEFbig')
 
+    print(name)
     print(cypherQueryGenerator.assistant.id)
     print(cypherQueryGenerator.thread.id)
     
@@ -60,7 +66,7 @@ def extend_metapath_construct_string(partial_path):
 def generate_cypher_query(metapath_str, error_message, cypherQueryGenerator):
     # build the prompt 
     prompt = f"""
-    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Return the generated query in the following format:
+    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclose. Return the generated query in the following format:
     ```cypher
     generated_cypher_query
     ```
@@ -76,7 +82,7 @@ def generate_cypher_query(metapath_str, error_message, cypherQueryGenerator):
     messages = cypherQueryGenerator.wait_get_last_k_message(1)
     cypher_query = extract_cypher(messages.data[0].content[0].text.value)
     
-    print('the generated cypher query is :\n %s' % cypher_query)
+    print(f'the generated cypher query is :\n {cypher_query}\n')
 
     return cypher_query
 
@@ -89,12 +95,14 @@ def run_and_filter_query(query_executor, cypher_query):
     # the records may contains dest nodes that not mentioned by the EVENT
     records = query_executor.run_query(cypher_query)
 
-    # by default, EVENT is the 2nd element, dest is the last element. 
-    # i.e, RETURN event, r1, evt, r2, pod, r3, secret 
+    # if only one record found, we keep it, otherwise, we check the compatibility 
     res = []
-    for record in records:
-        if message_compatible(record):
-            res.append(record)
+    if len(records) == 1:
+        res = records
+    else:
+        for record in records:
+            if message_compatible(record):
+                res.append(record)
     
     if len(res) == 0:
         print('Warning: ALL records are not message compatible')
@@ -126,6 +134,9 @@ def message_compatible(record):
     elif dest['isNative'] == 'false':
         k2 = 'tag'
 
+    # we expect exactly match, don't compare with lower case.
+    # otherwise, the kind checking is too loose
+
     return (dest[k1] in message) or (dest[k2] in message)
    
 
@@ -143,6 +154,11 @@ Use this template to construct a Cypher query that follows a specific metapath a
         ○ Begin by matching EVENT nodes that have a property named 'message'.
         ○ Use a WHERE clause with the CONTAINS function to tolerate variations like trailing spaces or word case in the message
         ○ Ensure the full error message is included in the query's WHERE clause against the 'message' property of the EVENT nodes, without truncation.
+        ○ Ensure to encase the error message in double-quotes ("") if it includes a single-quote (') character, otherwise, opt for single-quotes ('') for encapsulation.
+        MATCH (e:EVENT)
+        WHERE e.message CONTAINS "Error message with single-quote's character" OR e.message CONTAINS 'Error message without single-quote'
+        RETURN e
+
         ○ Apply a LIMIT to narrow down the results early:
         MATCH (evt:EVENT)
         WHERE evt.message CONTAINS 'Your error message here'
@@ -262,7 +278,7 @@ RETURN {', '.join(return_vars)}""")
     # Combine all parts into a complete Cypher query
     complete_query = '\n'.join(query_parts) # or '\n'.join() with new line
     
-    print(f'the human generated cypher query is: \n{complete_query}')
+    print(f'the human generated cypher query is: \n{complete_query}\n')
     return complete_query.strip()
 
 

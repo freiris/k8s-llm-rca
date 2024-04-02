@@ -2,17 +2,26 @@
 
 import neo4j
 from common.openai_generic_assistant import OpenAIGenericAssistant
+from datetime import datetime
+
+def date_suffix():
+    now = datetime.now()
+    suffix = now.strftime("-%m%d-%H%M")
+    return suffix
 
 def setup_state_semantic_analyzer():
     instructions = 'You are an expert in k8s, and can find the mistakes in the state, and can further determine whether the mistakes is related to the error message'
-    name = 'k8s-state-semantic-analyzer'
+    name = 'k8s-state-semantic-analyzer' + date_suffix() 
+    
+    
     semanticAnalyzer = OpenAIGenericAssistant()
     semanticAnalyzer.create_assistant(instructions, name, 'gpt-4')
     semanticAnalyzer.create_thread()
    
-    #semanticAnalyzer.retrieve_assistant(assistant_id="asst_Y9JKxkQAT6cPtzK8yx4Lv1ZD")
-    #semanticAnalyzer.retrieve_thread(thread_id="thread_AIBklLfHHYFUY3HPT6kUJ0ZE")
-    
+    #semanticAnalyzer.retrieve_assistant(assistant_id='asst_N6J0RvH9T5ZowQCJnGGgKFng')
+    #semanticAnalyzer.retrieve_thread(thread_id='thread_HWX12Uecgy6n6tPoBbdXjXdJ')
+
+    print(name)
     print(semanticAnalyzer.assistant.id)
     print(semanticAnalyzer.thread.id)
     print(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
@@ -78,6 +87,52 @@ def find_strict_states(entityKind, entityId, timestamp):
     """
     return cypher_query
 
+
+def build_report_prompt(kinds):
+    # task to perform
+    prompt_task = f"""Based on the previous analysis of {kinds}, summarize the root cause of the error message,\
+    and pinpoint out the most relevant parts. For each kind, provide a score (0~10/10) to indicate how relevant\
+    it is to the error message. Moreover, provide a resolution for the error with kubectl or bash command if appliable.\
+    Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.\
+    The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.
+    """
+    # output format
+    prompt_output = """The report needs to be formatted in the following JSON style:
+    {
+    "summary":[
+            {
+            "kind": "<k8s object kind>",
+            "explanation": "<brief summary of the explanation, include specific evidence for the error if appliable>",
+            "relevance_score": "<relevance_score>"
+            },
+            ....
+            ]
+    "conclusion": "<summary of the overall findings>"
+    "resolution": "<actions to resolve the error, with kubectl/bash command>"
+    }
+    """
+    prompt = prompt_task + prompt_output
+   
+    return prompt
+
+def build_report_for_empty_statepath(destKind, error_message, semanticAnalyzer):
+    finding = f'We can not find a path for the metapath, and confirmed that there is not a {destKind} entity, which is an obvious error.'
+    analysis = f'we analyzed the following error message: \n\
+                {error_message} \n\
+                and find out:\n\
+                {finding}'
+    semanticAnalyzer.add_message(analysis)
+    
+    prompt = build_report_prompt(destKind)
+    semanticAnalyzer.add_message(prompt)
+
+    print('run assistant')
+    semanticAnalyzer.run_assistant()
+    messages = semanticAnalyzer.wait_get_last_k_message(1)
+    report = messages.data[0].content[0].text.value
+    
+    return report, finding
+
 # the statepath is a neo4j record returned by running query for metapath
 def check_statepath(query_executor, semanticAnalyzer, statepath):
     # get timestamp, tmin, tmax, error_message from EVENT node
@@ -116,31 +171,11 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
 
     # summarize the node clues, make a conclusion, and provide a resolution
     kinds = (', ').join(kind2_tags)
-    prompt_task = f"""Based on the previous analysis of {kinds}, summarize the root cause of the error message,\
-    and pinpoint out the most relevant parts. For each kind, provide a score (0~10/10) to indicate how relevant\
-    it is to the error message. Moreover, provide a resolution for the error with kubectl or bash command if appliable.\
-    Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.\
-    The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.
-    """
+    prompt = build_report_prompt(kinds)
     
-    prompt_output = """The report needs to be formatted in the following JSON style:
-    {
-    "summary":[
-            { 
-            "kind": "<k8s object kind>", 
-            "explanation": "<brief summary of the explanation, include specific evidence for the error if appliable>", 
-            "relevance_score": "<relevance_score>"
-            }, 
-            ....
-            ]
-    "conclusion": "<summary of the overall findings>"
-    "resolution": "<actions to resolve the error, with kubectl/bash command>"
-    }
-    """
-    prompt = prompt_task + prompt_output
-
     # add message and run assistant 
     semanticAnalyzer.add_message(prompt)
+    
     print('run assistant')
     semanticAnalyzer.run_assistant()
     messages = semanticAnalyzer.wait_get_last_k_message(1)
@@ -179,7 +214,7 @@ def check_states_of_entity(entity_kind, entity_id, error_message, timestamp, que
     clues = []
     if len(records) == 0:
         entity_name = ad_hoc_find_entity_name(entity_kind, entity_id, query_executor)
-        state_not_exist = f"{entity_kind} ({entity_id}): there is not a STATE ({entity_kind.upper()}) node corresponds to the Entity ({entity_kind}) node, which is an apparent error. we confirm that {entity_name} does not exist."
+        state_not_exist = f"{entity_kind} ({entity_id}): there is not a STATE ({entity_kind.upper()}) node corresponds to the Entity ({entity_kind}) node, which is an apparent error. we confirm that {entity_name} does not exist"
         clues.append(state_not_exist)
         semanticAnalyzer.add_message(state_not_exist)
     # check the content of the STATE node with gpt-4 using semantic analysis
