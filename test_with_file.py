@@ -39,8 +39,14 @@ def main():
 
     #time.sleep(300)
    
-    input_filename = './data/mixed-example-10-3.csv'
-    output_filename = './output/mixed-example-10-3c-result.json'
+    #input_filename = './data/mixed-example-10-3.csv'
+    #output_filename = './output/mixed-example-10-3c-result.json'
+    
+    #input_filename = './data/test-empty-statepath.csv'
+    #output_filename = './output/test-empty-statepath-result.json'
+    
+    input_filename = './data-2-argument/FailedCreate-ExceedQuota-StatefulSet.csv'
+    output_filename = './output-3/FailedCreate-ExceedQuota-StatefulSet-new-result.json'
 
     errorMessages = []
     with open(input_filename, newline='') as csvfile:
@@ -50,7 +56,8 @@ def main():
         # Use islice to read first 10 lines of actual data
         #for row in islice(csvreader, 10):
         for row in csvreader:
-            errorMessages.append(row[0])
+            #errorMessages.append(row[0]) # for ./data
+            errorMessages.append(row[1]) # for ./data-2, each line is [namespace, error_message]
     
     for x in errorMessages:
         print(x)
@@ -61,7 +68,7 @@ def main():
     # total time cost for the code
     start_time = time.time()
 
-    for errorMessage in errorMessages[1:2]:
+    for errorMessage in errorMessages[1:]:
         inner_start_time = time.time() 
 
         result = dict()
@@ -104,7 +111,9 @@ def main():
         relevantResources = destRelevant['RelevantResources']
         intermediateKinds = [x for x in relevantResources if (x not in [srcKind, destKind])\
                                 and (x in nativeKinds or x in externalKinds)]
-        
+
+        print(f'srcKind = {srcKind}, destKind = {destKind}, intermediateKinds = {intermediateKinds}')
+
         metapaths = find_metapath(metagraph_query_executor, srcKind, destKind, intermediateKinds)
         
         result['analysis'] = list()
@@ -154,6 +163,18 @@ def main():
                 
                 analysis['human_cypher_query'] = cypher_query_2
 
+            # we double-checked with human-generated query, and confirm the non-existence of entity 
+            if(len(records) == 0):
+                print(f'Warning: There is not an Entity node for {destKind}, which is an obvious error.')
+                report, finding = build_report_for_empty_statepath(destKind, errorMessage, semanticAnalyzer)
+                print(report)
+                analysis['empty_statepath'] = list()
+                empty_sp = dict()
+                empty_sp['report'] = report
+                empty_sp['clue'] = finding
+                analysis['empty_statepath'].append(empty_sp)
+
+            # otherwise, check each statepath
             analysis['statepath'] = list()
             sp = dict()
             for record in records:
@@ -181,11 +202,11 @@ def main():
         
         # at most 3 retries for each message 
         token_usage_1 = rootCauseLocator.get_token_usage(tmin, tmax, 10) 
-        # at most 3 retries for each metapath, we find 2 metapaths at most now  
-        token_usage_2 = cypherQueryGenerator.get_token_usage(tmin, tmax, 20) 
+        # at most 3 retries for each metapath, we find 5 metapaths at most now  
+        token_usage_2 = cypherQueryGenerator.get_token_usage(tmin, tmax, 40) 
         # metapath from srckind to destkind has at most 3 edges, namely 4 nodes
         # therefore, at most 4 STATE nodes to check for each metapath
-        token_usage_3 = semanticAnalyzer.get_token_usage(tmin, tmax, 30)
+        token_usage_3 = semanticAnalyzer.get_token_usage(tmin, tmax, 60)
 
         token_usage = dict()
         token_usage['prompt_tokens'] = token_usage_1['prompt_tokens'] +\
@@ -199,9 +220,12 @@ def main():
         #result['token_usage_details'] = [token_usage_1, token_usage_2, token_usage_3]
 
         # write the result for an error_message
+        # if we use multiple-line json, we should seperate each record with comma (',')
+        # and enclose all records with square brackets ('[]').for later pyspark processing.
+        # or use single-line without comma and square brackets
         with open(output_filename, 'a') as json_file:
             json_record = json.dumps(result, indent=4)
-            json_file.write(json_record + '\n')
+            json_file.write(json_record + ',\n')
 
         print('+' * 150)
         print(f'check the result in {output_filename}')

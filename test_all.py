@@ -35,6 +35,7 @@ def main():
     print('setup state_semantic_analyzer')
     semanticAnalyzer = setup_state_semantic_analyzer()
 
+    print('\n' * 2)
     #time.sleep(300)
 
     errorMessages = [ """Error creating: pods "es-white-list-cronjob-1607752440-gprx7" is forbidden: exceeded quota: compute-resources-dumeng1, requested: pods=1, used: pods=50, limited: pods=50""",
@@ -46,12 +47,28 @@ def main():
                      """MountVolume.SetUp failed for volume "pvc-6d127f0b-216d-4bb0-a967-6620c1671be6" : stat /var/lib/kubelet/pods/131523d6-21b1-4d85-bfef-da4fbde98991/volumes/kubernetes.io~nfs/pvc-6d127f0b-216d-4bb0-a967-6620c1671be6: stale NFS file handle""",
                     """Unable to attach or mount volumes: unmounted volumes=[example-pv-storage], unattached volumes=[example-pv-storage default-token-l4rcp]: error processing PVC lizhiliang1/example-pvc1: PVC is being deleted""",
                      """create Pod yanghao71-c2-0 in StatefulSet yanghao71-c2 failed error: pods "yanghao71-c2-0" is forbidden: exceeded quota: compute-resources-yanghao71, requested: limits.memory=60Gi, used: limits.memory=1778Gi, limited: limits.memory=1800Gi""",
-                     """create Pod yanghao71-c2-0 in StatefulSet yanghao71-c2 failed error: pods "yanghao71-c2-0" is forbidden: exceeded quota: compute-resources-yanghao71, requested: pods=1, used: pods=50, limited: pods=50"""
+                     """create Pod yanghao71-c2-0 in StatefulSet yanghao71-c2 failed error: pods "yanghao71-c2-0" is forbidden: exceeded quota: compute-resources-yanghao71, requested: pods=1, used: pods=50, limited: pods=50""",
+                     """Error creating: pods "es-cronjob-1607373900-" is forbidden: error looking up service account wangxueqiang11/es-account: serviceaccount "es-account" not found""",
+                     """MountVolume.SetUp failed for volume "id-map" : configmap "es-proxy-id-map" not found""",
+                     """MountVolume.SetUp failed for volume "es-ssl" : object "zhangxianqing1"/"es-secret" not registered""",
+                    """Unable to attach or mount volumes: unmounted volumes=[example-pv-storage], unattached volumes=[default-token-l4rcp example-pv-storage]: error processing PVC lizhiliang1/example-pvc1: PVC is being deleted""",
+                     """MountVolume.SetUp failed for volume "nginx-map-conf" : failed to sync configmap cache: timed out waiting for the condition""",
+                     """MountVolume.SetUp failed for volume "es-account-token-l84cl" : failed to sync secret cache: timed out waiting for the condition""",
+                     """0/24 nodes are available: 20 Insufficient pods, 4 node(s) had taints that the pod didn't tolerate.""",
+                     """The node was low on resource: ephemeral-storage. Container gemini was using 103132224Ki, which exceeds its request of 0. """,
+                     """The node was low on resource: ephemeral-storage. Container gemini was using 79378424Ki, which exceeds its request of 0. """,
+                     """The node had condition: [DiskPressure]. """,
+                     """Failed to pull image "harbor.tsingj.local/data-market/kernel_repo:v20201210": rpc error: code = Unknown desc = Error response from daemon: unknown: artifact data-market/kernel_repo:v20201210 not found""",
+                     """Failed to pull image "gemini/gemini:v0.8-195-g4a323b2": rpc error: code = Unknown desc = Error response from daemon: pull access denied for gemini/gemini, repository does not exist or may require 'docker login': denied: requested access to the resource is denied""",
+                     """Failed to pull image "gemini/gemini:v0.8-195-g4a323b2": rpc error: code = Unknown desc = Error response from daemon: Get https://registry-1.docker.io/v2/: dial tcp 54.85.56.253:443: connect: network is unreachable""",
+                     'Error: cannot find volume "gen-white-list-conf" to mount into container "es-crontab-job"',
+                     """Liveness probe failed: Get http://192.168.35.229:8081/actuator/health-status: dial tcp 192.168.35.229:8081: connect: connection refused""",
+                    """Error creating: pods "es-cronjob-1607373900-" is forbidden: error looking up service account wangxueqiang11/es-account: serviceaccount "es-account" not found"""
 
             ]
     start_time = time.time()
 
-    for errorMessage in errorMessages[1:2]:
+    for errorMessage in errorMessages[-1:]:
         print(errorMessage)
         #message = input("Please input the message: \n")
 
@@ -90,7 +107,9 @@ def main():
         #intermediateKinds = [x for x in relevantResources if x not in [srcKind, destKind]]
         intermediateKinds = [x for x in relevantResources if (x not in [srcKind, destKind]) and (x in nativeKinds or x in externalKinds)]
         
-        # 
+        #
+        print(f'srcKind = {srcKind}, destKind = {destKind}, intermediateKinds = {intermediateKinds}')
+
         metapaths = find_metapath(metagraph_query_executor, srcKind, destKind, intermediateKinds)
         for metapath in metapaths:
             # generate cypher query based on the extended metapath string (with EVENT and Event)
@@ -99,6 +118,7 @@ def main():
             max_attempts = 3
             for attempt in range(max_attempts): 
                 try:
+                    print('\n')
                     print('%' * 100)
                     print(f'attempt = {attempt}\n')
                     print(f'generate cypher query for the following extended metapath: \n {extend_metapath}')
@@ -125,11 +145,19 @@ def main():
             # or the result of the query is empty (usually due to semantic error)
             # we will try it again with human_generate_cypher_query
             if (attempt == max_attempts-1) or (len(records) == 0):
+                print('\n')
                 print('#' * 100)
                 print(f'manually generate cypher query for the following extended metapath: \n {extend_metapath}') 
                 cypher_query_2 = human_generate_cypher_query(extend_metapath, errorMessage) 
                 records = run_and_filter_query(stategraph_query_executor, cypher_query_2)
+            
+            # we double-checked with human-generated query, and confirm the non-existence of entity 
+            if(len(records) == 0):
+                print(f'Warning: There is not an Entity node for {destKind}, which is an obvious error.')
+                report = build_report_for_empty_statepath(destKind, errorMessage, semanticAnalyzer)
+                print(report)
 
+            # otherwise, we check each record  
             for record in records:
                 report, path_clues = check_statepath(stategraph_query_executor, semanticAnalyzer, record)
                 print(report)
