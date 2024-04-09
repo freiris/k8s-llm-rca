@@ -18,7 +18,7 @@ from find_metapath.find_srckind_metapath_neo4j import *
 from generate_query.generate_query import *
 from check_state.analyze_root_cause import *
 
-#def main():
+
 
 def main(input_file, output_file):
     # Processing goes here
@@ -27,7 +27,7 @@ def main(input_file, output_file):
     
     print(f"Input file: {input_filename}")
     print(f"Output file: {output_filename}")
-    
+   
     print('+' * 120 + '\n')
 
     print("create executor and init connection")
@@ -48,7 +48,15 @@ def main(input_file, output_file):
 
     print('setup state_semantic_analyzer')
     semanticAnalyzer = setup_state_semantic_analyzer()
-
+   
+    with open('./log/app.log', 'a') as fo:
+        fo.write(f"Input file: {input_filename}\n")
+        fo.write(f"Output file: {output_filename}\n")
+        fo.write(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
+        fo.write(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}\n')
+        fo.write(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}\n')
+        fo.write('-' * 120 + '\n')
+    
     #time.sleep(300)
    
     #input_filename = './data/mixed-example-10-3.csv'

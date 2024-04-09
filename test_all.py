@@ -35,6 +35,12 @@ def main():
     print('setup state_semantic_analyzer')
     semanticAnalyzer = setup_state_semantic_analyzer()
 
+    with open('./log/assistant_url.txt', 'a') as fo:
+        fo.write(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
+        fo.write(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}\n')
+        fo.write(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}\n')
+        fo.write('-' * 100 + '\n')
+
     print('\n' * 2)
     #time.sleep(300)
 
