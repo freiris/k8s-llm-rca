@@ -48,8 +48,10 @@ def main(input_file, output_file):
 
     print('setup state_semantic_analyzer')
     semanticAnalyzer = setup_state_semantic_analyzer()
-   
-    with open('./log/app.log', 'a') as fo:
+  
+    log_filename = './log/app.log'
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+    with open(log_filename, 'a') as fo:
         fo.write(f"Input file: {input_filename}\n")
         fo.write(f"Output file: {output_filename}\n")
         fo.write(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
@@ -243,6 +245,7 @@ def main(input_file, output_file):
         # if we use multiple-line json, we should seperate each record with comma (',')
         # and enclose all records with square brackets ('[]').for later pyspark processing.
         # or use single-line without comma and square brackets
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         with open(output_filename, 'a') as json_file:
             json_record = json.dumps(result, indent=4)
             json_file.write(json_record + ',\n')
