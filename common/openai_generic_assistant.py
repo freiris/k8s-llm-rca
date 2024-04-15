@@ -128,9 +128,9 @@ class OpenAIGenericAssistant:
             if (run.created_at != None) and (run.completed_at != None) and \
                 (run.created_at >= tmin) and (run.created_at < tmax) and \
                 (run.completed_at >= tmin) and (run.completed_at < tmax):
-                token_usage['prompt_tokens'] += run.usage['prompt_tokens']
-                token_usage['completion_tokens'] += run.usage['completion_tokens']
-                token_usage['total_tokens'] += run.usage['total_tokens']
+                token_usage['prompt_tokens'] += run.usage.prompt_tokens
+                token_usage['completion_tokens'] += run.usage.completion_tokens
+                token_usage['total_tokens'] += run.usage.total_tokens
 
         return token_usage
 
