@@ -83,7 +83,7 @@ def main(input_file, output_file):
     # total time cost for the code
     start_time = time.time()
 
-    for row in rows[3:]:
+    for row in rows:
         inner_start_time = time.time() 
         
         namespace = row[0]
