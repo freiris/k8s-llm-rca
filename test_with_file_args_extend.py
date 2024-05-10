@@ -20,14 +20,10 @@ from check_state.analyze_root_cause import *
 
 
 
-def main(input_file, output_file):
+def run(input_file, output_file, start_line, end_line):
     # Processing goes here
-    input_filename = input_file
-    output_filename = output_file
-    
-    print(f"Input file: {input_filename}")
-    print(f"Output file: {output_filename}")
-   
+    print(f"Input file: {input_file}")
+    print(f"Output file: {output_file}")
     print('+' * 120 + '\n')
 
     print("create executor and init connection")
@@ -52,8 +48,8 @@ def main(input_file, output_file):
     log_filename = './log/app.log'
     os.makedirs(os.path.dirname(log_filename), exist_ok=True)
     with open(log_filename, 'a') as fo:
-        fo.write(f"Input file: {input_filename}\n")
-        fo.write(f"Output file: {output_filename}\n")
+        fo.write(f"Input file: {input_file}\n")
+        fo.write(f"Output file: {output_file}\n")
         fo.write(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
         fo.write(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}\n')
         fo.write(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}\n')
@@ -63,15 +59,11 @@ def main(input_file, output_file):
    
     rows = []
     #error_messages = []
-    with open(input_filename, newline='') as csvfile:
+    with open(input_file, newline='') as csvfile:
         csvreader = csv.reader(csvfile)
         # Skip the header
         next(csvreader)
-        # Use islice to read first 10 lines of actual data
-        #for row in islice(csvreader, 10):
         for row in csvreader:
-            #error_messages.append(row[0]) # for ./data
-            #error_messages.append(row[1]) # for ./data-2, each line is [namespace, error_message]
             rows.append(row)
 
     for x in rows:
@@ -83,7 +75,7 @@ def main(input_file, output_file):
     # total time cost for the code
     start_time = time.time()
 
-    for row in rows:
+    for row in rows[start_line: end_line]:
         inner_start_time = time.time() 
         
         namespace = row[0]
@@ -245,13 +237,13 @@ def main(input_file, output_file):
         # if we use multiple-line json, we should seperate each record with comma (',')
         # and enclose all records with square brackets ('[]').for later pyspark processing.
         # or use single-line without comma and square brackets
-        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
-        with open(output_filename, 'a') as json_file:
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'a') as json_file:
             json_record = json.dumps(result, indent=4)
             json_file.write(json_record + ',\n')
 
         print('+' * 150)
-        print(f'check the result in {output_filename}')
+        print(f'check the result in {output_file}')
         time.sleep(10)
         print('+' * 150)
 
@@ -271,10 +263,6 @@ def main(input_file, output_file):
     metagraph_query_executor.close()
     stategraph_query_executor.close()
 
-'''
-if __name__ == "__main__":
-    main()
-'''
 
 if __name__ == "__main__":
     # Initialize parser
@@ -287,19 +275,34 @@ if __name__ == "__main__":
         '-i', '--input-file',
         type=str,
         required=True,
+        dest='input_file',
         help='Path to the input file'
     )
     parser.add_argument(
         '-o', '--output-file',
         type=str,
         required=True,
+        dest='output_file',
         help='Path to the output file'
+    )
+    parser.add_argument(
+        '-f', '--from',
+        type=int,
+        default=0,
+        dest='start_line',
+        help = 'Start line'
+    )
+    parser.add_argument(
+        '-t', '--to',
+        type=int,
+        default=None,
+        dest='end_line',
+        help = 'End line'
     )
 
     # Parse arguments
     args = parser.parse_args()
 
     # Pass the command line arguments to main function
-    main(args.input_file, args.output_file)
-
+    run(args.input_file, args.output_file, args.start_line, args.end_line)
 
