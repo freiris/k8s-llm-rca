@@ -86,12 +86,14 @@ def run(input_file, output_file, begin_index, end_index):
         namespace = row[0]
         error_message = row[1]
         timestamp = row[2]
+        uuid = row[3] if len(row) > 2 else None
 
         result = dict()
         result['error_message'] = error_message
         result['namespace'] = namespace
         result['timestamp'] = timestamp 
-
+        result['uuid'] = uuid
+        
         print(error_message)
 
         # find srcKind in stategraph according to message, (Event)-[involvedObject_uid]->(srcKind)
@@ -149,7 +151,8 @@ def run(input_file, output_file, begin_index, end_index):
                     print(f'attempt = {attempt}\n')
                     print(f'generate cypher query for the following extended metapath: \n {extend_metapath}')
                     #cypher_query = generate_cypher_query(extend_metapath, error_message, cypherQueryGenerator)
-                    cypher_query = generate_cypher_query(extend_metapath, error_message, namespace, timestamp, cypherQueryGenerator)
+                    #cypher_query = generate_cypher_query(extend_metapath, error_message, namespace, timestamp, cypherQueryGenerator)
+                    cypher_query = generate_cypher_query(extend_metapath, error_message, namespace, timestamp, uuid, cypherQueryGenerator)
                     records = run_and_filter_query(stategraph_query_executor, cypher_query)
                     # if succeed
                     break
@@ -177,7 +180,8 @@ def run(input_file, output_file, begin_index, end_index):
             if (attempt == max_attempts-1) or (len(records) == 0):
                 print('#' * 100)
                 print(f'manually generate cypher query for the following extended metapath: \n {extend_metapath}') 
-                cypher_query_2 = human_generate_cypher_query(extend_metapath, error_message, namespace, timestamp) 
+                #cypher_query_2 = human_generate_cypher_query(extend_metapath, error_message, namespace, timestamp) 
+                cypher_query_2 = human_generate_cypher_query(extend_metapath, error_message, namespace, timestamp, uuid)
                 records = run_and_filter_query(stategraph_query_executor, cypher_query_2)
                 
                 analysis['human_cypher_query'] = cypher_query_2
