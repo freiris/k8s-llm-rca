@@ -94,7 +94,9 @@ def build_report_prompt(kinds):
     and pinpoint out the most relevant parts. For each kind, provide a score (0~10/10) to indicate how relevant\
     it is to the error message. Moreover, provide a resolution for the error with kubectl or bash command if appliable.\
     Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.\
-    The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.
+    The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.\
+    Furthermore, provide an overall score (0~10/10) to indicate how well the conclusion can explain the root cause of the\
+    error message, and suggest whether a further investigation is needed.
     """
     # output format
     prompt_output = """The report needs to be formatted in the following JSON style:
@@ -109,6 +111,8 @@ def build_report_prompt(kinds):
             ]
     "conclusion": "<summary of the overall findings>"
     "resolution": "<actions to resolve the error, with kubectl/bash command>"
+    "overall_score": "<overall score of how much the conclusion can explain root cause of error message>"
+    "further_investigation": "<True/False>"
     }
     """
     prompt = prompt_task + prompt_output
