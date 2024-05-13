@@ -1,18 +1,5 @@
 #!/usr/bin/env python
 
-'''
-import os
-import openai
-import time
-import json
-from openai import OpenAI
-from neo4j import GraphDatabase
-
-from neo4j_query_executor import Neo4jQueryExecutor
-from openai_cypher_query_generator import OpenAICypherQueryGenerator
-from openai_cypher_query_generator import build_generation_template
-'''
-
 from common.openai_generic_assistant import OpenAIGenericAssistant
 
 from datetime import datetime
@@ -63,7 +50,7 @@ def extend_metapath_construct_string(partial_path):
     return rels_str
 
 # Note: metapath is a string here
-def generate_cypher_query(metapath_str, error_message, namespace, timestamp, cypherQueryGenerator):
+def generate_cypher_query(metapath_str, error_message, namespace, timestamp, uuid, cypherQueryGenerator):
     # build the prompt 
     prompt = f"""
     Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclose. Return the generated query in the following format:
@@ -78,6 +65,8 @@ def generate_cypher_query(metapath_str, error_message, namespace, timestamp, cyp
     {namespace}
     the time to filtering is:
     {timestamp}
+    the optional uuid to filtering is:
+    {uuid}
     """
     cypherQueryGenerator.add_message(prompt)
 
@@ -145,11 +134,13 @@ def message_compatible(record):
    
 
 
+# we find that if we only match the 'uuid' to determine the EVENT, the generated query runs slowly,
+# so we put the 'uuid' as the last filter
 
 def build_generation_template():
     template = """
     Cypher Query Generation Prompt Template
-Use this template to construct a Cypher query that follows a specific metapath and filters 'EVENT' nodes based on the value of 'message', 'metadata', 'timestamp' and 'nextTimestamp' properties. the INPUT contains an 'error message' (for message filter), a 'namespace' (for metadata filter) and a 'time' (for timestamp and nextTimestamp filter). As an example, we'll use a case where a 'ConfigMap' is not found.
+Use this template to construct a Cypher query that follows a specific metapath and filters 'EVENT' nodes based on the value of 'message', 'metadata', 'timestamp', 'nextTimestamp' and optional 'metahash' properties. the INPUT contains an 'error message' (for message filter), a 'namespace' (for metadata filter) and a 'time' (for timestamp and nextTimestamp filter), and an optional 'uuid' (for metahash filter). As an example, we'll use a case where a 'ConfigMap' is not found.
 
    1. Analyze the Metapath and Error Message:
         ○ Break down the metapath into its components, where each segment includes a relationship type (relType), source node type (srcKind), destination node type (destKind), and a characteristic value (propertyValue) associated with a consistently named property on the relationship. This property is uniformly named 'key' across relationships. To filter for a specific relationship, you reference this 'key' along with the provided characteristic value, as expressed in the pattern r.key = 'propertyValue'.
@@ -181,15 +172,27 @@ Use this template to construct a Cypher query that follows a specific metapath a
         AND e.nextTimestamp >= 'time'
         RETURN e
 
-        (4) Apply a LIMIT to narrow down the results early:
-        MATCH (evt:EVENT)
-        WHERE evt.message CONTAINS 'Your error message here'
+        (4)If a 'uuid' is presented, further by matching EVENT nodes that has a property named 'metahash'.
+        ○ Use a AND clause to follow the 'timestamp' and 'nextTimestamp' filter. 
+        MATCH (e:EVENT)
+        WHERE e.message CONTAINS "Error message with single-quote's character" OR e.message CONTAINS 'Error message without single-quote'
         AND e.metadata CONTAINS 'namespace'
         AND e.timestamp <= 'time'
         AND e.nextTimestamp >= 'time'
-        WITH evt
+        AND e.metahash = 'uuid'
+        RETURN e
+
+        (5) Apply a LIMIT to narrow down the results early:
+        MATCH (e:EVENT)
+        WHERE e.message CONTAINS 'Your error message here'
+        AND e.metadata CONTAINS 'namespace'
+        AND e.timestamp <= 'time'
+        AND e.nextTimestamp >= 'time'
+        AND e.metahash = 'uuid'
+        WITH e
         LIMIT 1
-        
+
+
     3. Chain MATCH Clauses Based on the Metapath:
         ○ Continue the query by adding MATCH clauses for each part of the provided metapath. For each segment of the metapath, use the node type (srcKind and destKind) as the label for the source and destination node. Use the relationship type (relType) as the label for the connecting edge, and apply a WHERE clause based on the 'key' property value (propertyValue) specified for that relationship:
    
@@ -225,6 +228,8 @@ RETURN startNode, rel, destNode, …
 
     7. Example Based on a ConfigMap Not Found Case:
 
+    (1) If 'uuid' is not presented, for example
+
     Provided Metapath:
     HasEvent, Event, EVENT, metadata_uid;
     ReferInternal, Event, Pod, involvedObject_uid;
@@ -256,12 +261,35 @@ RETURN startNode, rel, destNode, …
     WHERE r3.key = 'spec_volumes_configMap_name'
     RETURN event, r1, evt, r2, pod, r3, configMap
 
+    (2) If the 'uuid' of Event is presented, for example:
+    
+    uuid for Filtering: 
+    '76861283-b2b9-4f61-92e9-7feb6f62be2a'
+   
+    We can argument the Generated Cypher Query:
+
+    MATCH (evt:EVENT)
+    WHERE evt.message CONTAINS 'MountVolume.SetUp failed for volume "gen-white-list-conf" : configmap "es-gen-white-list-configmap" not found'
+    AND evt.metadata CONTAINS 'cuibo1'
+    AND evt.timestamp <= '2020-12-12 08:35:02.012'
+    AND evt.nextTimestamp >= '2020-12-12 08:35:02.012'
+    AND evt.metahash = '76861283-b2b9-4f61-92e9-7feb6f62be2a'
+    WITH evt
+    LIMIT 1
+    MATCH (event:Event)-[r1:HasEvent]->(evt)
+    WHERE r1.key = 'metadata_uid'
+    MATCH (event)-[r2:ReferInternal]->(pod:Pod)
+    WHERE r2.key = 'involvedObject_uid'
+    MATCH (pod)-[r3:ReferInternal]->(configMap:ConfigMap)
+    WHERE r3.key = 'spec_volumes_configMap_name'
+    RETURN event, r1, evt, r2, pod, r3, configMap
+
     """
 
     return template
 
 
-def human_generate_cypher_query(metapath_str, error_message, namespace, timestamp):
+def human_generate_cypher_query(metapath_str, error_message, namespace, timestamp, uuid=None):
     # Parse the metapath string into list
     mp = metapath_str.split(';')[:-1]
     metapath = [rel.strip().split(', ') for rel in mp]
@@ -276,10 +304,18 @@ MATCH (evt:EVENT)
 WHERE evt.message CONTAINS {repr(error_message)}
 AND evt.metadata CONTAINS {repr(namespace)}
 AND evt.timestamp <= {repr(timestamp)} 
-AND evt.nextTimestamp >= {repr(timestamp)}
+AND evt.nextTimestamp >= {repr(timestamp)}""")
+
+    if (uuid != None):
+        query_parts.append(f"""
+AND evt.metahash = {repr(uuid)}
 WITH evt
 LIMIT 1""")
-
+    else:
+        query_parts.append(f"""
+WITH evt
+LIMIT 1""")
+        
     # Build node alias for each srcKind and destKind
     idx = 1
     for rel in metapath:
