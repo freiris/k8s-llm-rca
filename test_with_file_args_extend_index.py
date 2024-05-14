@@ -193,7 +193,30 @@ def run(input_file, output_file, begin_index, end_index):
                 print(report)
                 analysis['empty_statepath'] = list()
                 empty_sp = dict()
-                empty_sp['report'] = report
+                #empty_sp['report'] = report
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    try:
+                        empty_sp['report'] = json.loads(report)
+                        break
+                    except json.decoder.JSONDecodeError as e:
+                        print(f"JSON Error occurred: {str(e)}")
+                        exception_message = f"The report encounters the following exception:\
+                            \nJSON Error occurred: {str(e)}\
+                            \nmake sure to return the output in JSON format,\
+                            \nand must NOT contain any text outside the JSON structure."
+                        semanticAnalyzer.add_message(exception_message)
+                        continue
+                    except Exception as e:
+                        print(f"An unexpected error occurred: {str(e)}")
+                        exception_message = f"The report encounters encounters the following exception:\
+                            \nAn unexpected error occurred: {str(e)}\
+                            \nBased on the exception details above, please generate a correct json-only report."
+                        semanticAnalyzer.add_message(exception_message)
+                        continue
+                
+                if (attempt == max_attempts-1):
+                    empty_sp['report'] == report
                 empty_sp['clue'] = finding
                 analysis['empty_statepath'].append(empty_sp)
 
@@ -208,7 +231,30 @@ def run(input_file, output_file, begin_index, end_index):
                     print('-' * 100)
                     print(path_clues[k][0])
                 '''
-                sp['report'] = report
+                #sp['report'] = report
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    try:
+                        sp['report'] = json.loads(report)
+                        break
+                    except json.decoder.JSONDecodeError as e:
+                        print(f"JSON Error occurred: {str(e)}")
+                        exception_message = f"The report encounters the following exception:\
+                            \nJSON Error occurred: {str(e)}\
+                            \nmake sure to return the output in JSON format,\
+                            \nand must NOT contain any text outside the JSON structure."
+                        semanticAnalyzer.add_message(exception_message)
+                        continue
+                    except Exception as e:
+                        print(f"An unexpected error occurred: {str(e)}")
+                        exception_message = f"The report encounters encounters the following exception:\
+                            \nAn unexpected error occurred: {str(e)}\
+                            \nBased on the exception details above, please generate a correct json-only report."
+                        semanticAnalyzer.add_message(exception_message)
+                        continue
+                if(attempt == max_attempts-1):
+                    sp['report'] = report
+        
                 sp['clue'] = path_clues
                 analysis['statepath'].append(sp)
 

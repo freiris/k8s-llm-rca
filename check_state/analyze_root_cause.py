@@ -99,7 +99,7 @@ def build_report_prompt(kinds):
     error message, and suggest whether a further investigation is needed.
     """
     # output format
-    prompt_output = """The report needs to be formatted in the following JSON style:
+    prompt_output = """The report should be formatted strictly in the following JSON style, and must NOT contain any text outside the JSON structure:
     {
     "summary":[
             {
@@ -114,6 +114,8 @@ def build_report_prompt(kinds):
     "overall_score": "<overall score of how much the conclusion can explain root cause of error message>"
     "further_investigation": "<True/False>"
     }
+
+    Please provide the JSON-only response based on the guidelines above.
     """
     prompt = prompt_task + prompt_output
    
