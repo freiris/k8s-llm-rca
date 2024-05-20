@@ -15,7 +15,7 @@ def setup_state_semantic_analyzer():
     
     
     semanticAnalyzer = OpenAIGenericAssistant()
-    semanticAnalyzer.create_assistant(instructions, name, 'gpt-4')
+    semanticAnalyzer.create_assistant(instructions, name, 'gpt-4o')
     semanticAnalyzer.create_thread()
    
     #semanticAnalyzer.retrieve_assistant(assistant_id='asst_N6J0RvH9T5ZowQCJnGGgKFng')
@@ -31,7 +31,9 @@ def setup_state_semantic_analyzer():
     """
 
     semanticAnalyzer.add_message(state_rule)
-
+   
+    # works well for gpt-4
+    '''
     task_prompt = """
     You will receive two separate pieces of information:
     1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example).
@@ -44,11 +46,30 @@ def setup_state_semantic_analyzer():
     - Conduct an evaluation to determine if there are any apparent misconfigurations or errors in the JSON fields, especially those which could align with the nature of the provided error message.
     - If the error message seems to relate to the JSON data, clarify the connection and identify any anomalies or errors in the data.
     - If the error message appears to be unrelated to the k8s object's state, acknowledge this finding.
-    - Provide a summary of any issues discovered with the k8s JSON data.
+    - Provide a summary of any issues discovered with the k8s JSON data. 
 
     Proceed with these instructions when prompted with the k8s object's JSON string and error message.
     """
-    
+    '''
+
+    # used for gpt-4o
+    task_prompt = """
+You will receive two separate pieces of information:
+1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example).
+2. An error message that may or may not be associated with the k8s object.
+
+Your task involves multiple steps:
+- Parse the provided JSON string to extract and examine the object's details, with a focus on the 'spec' and 'status' fields.
+- Determine if there are any apparent misconfigurations or errors in the JSON fields, especially those which could align with the nature of the provided error message.
+- Summarize key observations and any issues discovered with the k8s JSON data in a concise manner (limit within 200 words).
+
+Key points to include:
+1. **Key Observations**: Highlight the most relevant findings related to the error message.
+2. **Summary of Issues**: Summarize any issues discovered within the JSON data that contribute to the error message.
+
+Your analysis should solely focus on these key points and avoid a step-by-step description or restating the parsed JSON and error message.
+"""
+
     semanticAnalyzer.add_message(task_prompt)
 
 
@@ -95,11 +116,20 @@ def build_report_prompt(kinds):
     it is to the error message. Moreover, provide a resolution for the error with kubectl or bash command if appliable.\
     Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.\
     The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.\
-    Furthermore, provide an overall score (0~10/10) to indicate how well the conclusion can explain the root cause of the\
-    error message, and suggest whether a further investigation is needed.
+    Furthermore, provide an overall score (0~10/10) to indicate how well the conclusion (and detailed summary if needed)\
+    can explain the root cause of the error message. Also, determine if further investigation is needed.
+
+    Scoring and Investigation Criteria:
+    1. If the conclusion alone can directly explain the root cause of the error message, score it above 9/10,\
+        and set "further_investigation": False.
+    2. If the conclusion cannot solely explain the root cause, but in combination with a detailed summary,\
+        they together can explain the root cause, score it above 7/10 and set "further_investigation": False.
+    3. If the conclusion and summary can only partially explain the root cause or are merely relevant to it,\
+        score it below 5/10 and set "further_investigation": True.
     """
+
     # output format
-    prompt_output = """The report should be formatted strictly in the following JSON style, and must NOT contain any text outside the JSON structure:
+    prompt_output = """Format the report strictly in the following JSON structure, ensuring that the output contains only the JSON object and no additional text or explanation:
     {
     "summary":[
             {
@@ -115,7 +145,7 @@ def build_report_prompt(kinds):
     "further_investigation": "<True/False>"
     }
 
-    Please provide the JSON-only response based on the guidelines above.
+    **Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure.**
     """
     prompt = prompt_task + prompt_output
    

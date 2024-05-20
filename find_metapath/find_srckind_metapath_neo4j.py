@@ -53,7 +53,7 @@ Remember to approach each situation as unique, using the information given to yo
     name = 'k8s-root-cause-locator' + date_suffix()
 
     rootCauseLocator = OpenAIGenericAssistant()
-    rootCauseLocator.create_assistant(instructions, name, 'gpt-4')
+    rootCauseLocator.create_assistant(instructions, name, 'gpt-4o')
     rootCauseLocator.create_thread()
     
     #rootCauseLocator.retrieve_assistant(assistant_id='asst_4bnrua5ShN88m4MblGtnUSjZ')
@@ -216,6 +216,20 @@ def find_destKind_relevantResources(errorMessage, srcKind, promptTemplate, rootC
     json_data = extract_json(messages.data[0].content[0].text.value)
 
     return json_data
+
+
+def add_retry_prompt(error_message, destkinds, rootCauseLocator):
+    prompt = f"""We have investigated the {destkinds} and its associated resources for the following error message,\
+            but we could not determine the root cause. Can you suggest a different destkind and/or relevant resources\
+            to help us identify the issue, based on the given instructions?
+
+            Error Message:
+            {error_message}
+            """
+
+    print(prompt)
+    print('^' * 100)
+    rootCauseLocator.add_message(prompt)
 
 def extract_json(message_str):
     json_part = message_str.split('```json')[1].split('```')[0].strip()

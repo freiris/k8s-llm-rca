@@ -66,10 +66,13 @@ def extend_metapath_construct_string(partial_path):
 def generate_cypher_query(metapath_str, error_message, cypherQueryGenerator):
     # build the prompt 
     prompt = f"""
-    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclose. Return the generated query in the following format:
+    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclose. Return only the generated Cypher query within a code block, formatted as below:
     ```cypher
-    generated_cypher_query
+    <cypher_query>
     ```
+    Do not include any extraneous strings like 'generated_cypher_query'. 
+    Ensure the first line inside the code block is the starting line of the Cypher query.
+
     the provided metapath is:
     {metapath_str}
     the error message to filtering is:
