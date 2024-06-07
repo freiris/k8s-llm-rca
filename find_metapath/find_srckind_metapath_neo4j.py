@@ -236,22 +236,52 @@ def extract_json(message_str):
     json_data = json.loads(json_part)
     return json_data
 
+def pre_defined_kinds(nativeKinds, externalKinds):
+    prompt = f"""
+The predefined Kubernetes (k8s) API resource kinds and external resource kinds are listed below:
+- k8s API resource kinds: {nativeKinds}
+- External resource kinds: {externalKinds}
+
+Please note:
+- For the k8s native kinds, focus on the commonly used kinds: ['ConfigMap', 'CronJob', 'DaemonSet', 'Deployment', 'Endpoints', 'Image', 'Job', 'LimitRange', 'Namespace', 'Node', 'PersistentVolume', 'PersistentVolumeClaim', 'Pod', 'ReplicaSet', 'ResourceQuota', 'Revision', 'Secret', 'Service', 'ServiceAccount', 'StatefulSet'].
+- For the external kinds, prioritize focusing on: ['nfs', 'container', 'image', 'hostPath'].
+"""
+
+    return prompt
+
 
 def build_prompt_template(nativeKinds, externalKinds):
+    '''
     # limit the kinds within the k8s-api-resource and k8s-external-resource kinds in metagraph
-    prefix = f"""The predefined k8s API resource kinds and external resource kinds are the following:\n\
-k8s-api-resource-kinds: {nativeKinds}\n\
-k8s-external-resource-kinds: {externalKinds}\n\
-for the external kinds, firstly focus on ['nfs', 'container', 'image', 'hostPath'], then for other kinds\n
+    prefix = f"""
+The predefined Kubernetes (k8s) API resource kinds and external resource kinds are listed below:
+- k8s API resource kinds: {nativeKinds}
+- External resource kinds: {externalKinds}
+
+Please note:
+- For the k8s native kinds, focus on the commonly used kinds: ['ConfigMap', 'CronJob', 'DaemonSet', 'Deployment', 'Endpoints', 'Image', 'Job', 'LimitRange', 'Namespace', 'Node', 'PersistentVolume', 'PersistentVolumeClaim', 'Pod', 'ReplicaSet', 'ResourceQuota', 'Revision', 'Secret', 'Service', 'ServiceAccount', 'StatefulSet'].
+- For the external kinds, prioritize focusing on: ['nfs', 'container', 'image', 'hostPath'].
 """
+    '''
+    prefix = "Refer to the predefined resource kinds list."
 
     # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
     requirement ="""Perform an analysis on the Kubernetes error message that mentions a {involved_object}.\n
 Follow these steps to prepare the analysis:\n
 1. Recognize the {involved_object} as the starting point of the issue.\n
-2. Determine the 'destKind' within specified k8s API resource kinds and k8s external resource kinds that provides a resolution to the problem, provide only one 'destKind' and ensure it is different from {involved_object}.\n
+
+2. Determine the 'destKind' that is directly related to the problem from the predefined k8s API resource kinds and external resource kinds.\n
+
+Guidelines:\n
+(1) The 'destKind' should be highly relevant to the issue. For example, if an NFS file cannot be found, 'nfs' should be identified as the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be identified as the 'destKind'. The goal is for GPT-4 to infer the most relevant 'destKind' for the problem.\n
+(2) The 'destKind' must be within the predefined list of resource kinds.\n
+(3) Provide only one 'destKind'; do not list multiple kinds.\n
+(4) The 'destKind' is usually different from {involved_object}, but occasionally it can be the same.\n
+
 3. Enumerate the most critical k8s API and external resources relevant to the matter within the predefined kinds.\n
+
 4. Chart the primary progression from {involved_object} to 'destKind', including the most relevant resources as waypoints.\n
+
 5. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:\n
     ```json
         {{\n
@@ -269,4 +299,4 @@ Follow these steps to prepare the analysis:\n
 Analyze the following error message ensuring 'destKind' and 'Resources-x' are strictly limited to the provided lists:\n
 {error_message}\n
 """
-    return prefix + requirement
+    return prefix + '\n' + requirement
