@@ -186,13 +186,8 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
     kind2_tags = []
     for ele in statepath:
         if isinstance(ele, neo4j.graph.Node) and not ((ele['kind2'] == 'Event') or (ele['kind'] == 'Event')):
-            if ele['isNative'] == 'true':
-                entity_kind = ele['kind2']
-            elif ele['isNative'] == 'false':
-                entity_kind = ele['tag']
-            entity_id = ele['id']
-            
-            print(entity_kind, entity_id)
+            entity_kind, entity_name, entity_id = get_kind_name_id(ele)
+            print(entity_kind, entity_name, entity_id)
             kind2_tags.append(entity_kind)
             
             '''
@@ -200,7 +195,7 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
             node_clues = check_states_existence_and_semantic(query_executor, cypher_query,\
                             semanticAnalyzer, error_message)
             '''
-            node_clues = check_states_of_entity(entity_kind, entity_id, error_message, timestamp,\
+            node_clues = check_states_of_entity(entity_kind, entity_name, entity_id, error_message, timestamp,\
                             query_executor, semanticAnalyzer)
             #path_clues[entity_id] = node_clues
             path_clues[f'{entity_kind}({entity_id})'] = node_clues
@@ -221,7 +216,8 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
     return report, path_clues
 
 
-
+'''
+# not used
 # there's usually only one state node for the entity node, but sometimes it can be more than one
 def check_states_existence_and_semantic(query_executor, cypher_query, semanticAnalyzer, error_message):
     clues = []
@@ -239,9 +235,11 @@ def check_states_existence_and_semantic(query_executor, cypher_query, semanticAn
             clues.append(state_node['kind'] + '(' + state_node['id'] + '): ' + state_node_semantic)
 
     return clues
+'''
 
 # check the existence and semantic of the STATE node for an Entity node
-def check_states_of_entity(entity_kind, entity_id, error_message, timestamp, query_executor, semanticAnalyzer):
+def check_states_of_entity(entity_kind, entity_name, entity_id, error_message, timestamp,\
+                    query_executor, semanticAnalyzer):
     # generate cypher_query and retrieve records
     cypher_query = find_strict_states(entity_kind, entity_id, timestamp) 
     records = query_executor.run_query(cypher_query)
@@ -249,7 +247,7 @@ def check_states_of_entity(entity_kind, entity_id, error_message, timestamp, que
     # check whether the STATE node exist
     clues = []
     if len(records) == 0:
-        entity_name = ad_hoc_find_entity_name(entity_kind, entity_id, query_executor)
+        #entity_name = ad_hoc_find_entity_name(entity_kind, entity_id, query_executor)
         state_not_exist = f"{entity_kind} ({entity_id}): there is not a STATE ({entity_kind.upper()}) node corresponds to the Entity ({entity_kind}) node, which is an apparent error. we confirm that {entity_name} does not exist"
         clues.append(state_not_exist)
         semanticAnalyzer.add_message(state_not_exist)
@@ -267,6 +265,33 @@ def check_states_of_entity(entity_kind, entity_id, error_message, timestamp, que
 
     return clues
 
+
+def get_kind_name_id(entity):
+    # kind
+    if entity['isNative'] == 'true':
+        kind = entity['kind2']
+    elif entity['isNative'] == 'false':
+        kind = entity['tag']
+    
+    # name 
+    if entity['isNative'] == 'true':
+        key = 'name2'
+    elif entity['isAtomic'] == 'true':
+        key = 'val'
+    elif entity['tag'] in ['nfs', 'hostPath']:
+        key = 'path'
+    elif entity['tag'] == 'container':
+        key = 'containerName'
+    elif entity['tag'] == 'image':
+        key = 'imageName'
+    name = entity[key]
+
+    # id 
+    uid = entity['id']
+    
+    return kind, name, uid
+
+'''
 # we want to test whether adding the entity name to the state_not_exist will get better result
 def ad_hoc_find_entity_name(entity_kind, entity_id, query_executor):
     cypher_query = f"""
@@ -290,6 +315,7 @@ def ad_hoc_find_entity_name(entity_kind, entity_id, query_executor):
         key = 'imageName' 
     
     return entity[key]
+'''
 
 def check_semantic(state_node, error_message, semanticAnalyzer):
     # pick fileds that are important to check
@@ -319,5 +345,4 @@ def check_semantic(state_node, error_message, semanticAnalyzer):
     clue = messages.data[0].content[0].text.value
     
     return clue
-
 
