@@ -247,8 +247,7 @@ def check_states_of_entity(entity_kind, entity_name, entity_id, error_message, t
     # check whether the STATE node exist
     clues = []
     if len(records) == 0:
-        #entity_name = ad_hoc_find_entity_name(entity_kind, entity_id, query_executor)
-        state_not_exist = f"{entity_kind} ({entity_id}): there is not a STATE ({entity_kind.upper()}) node corresponds to the Entity ({entity_kind}) node, which is an apparent error. we confirm that {entity_name} does not exist"
+        state_not_exist = f"{entity_kind} ({entity_id}): there is not a STATE ({entity_kind.upper()}) node corresponds to the Entity ({entity_kind}) node, which is an apparent error. we confirm that '{entity_name}' does not exist"
         clues.append(state_not_exist)
         semanticAnalyzer.add_message(state_not_exist)
     # check the content of the STATE node with gpt-4 using semantic analysis
@@ -272,7 +271,6 @@ def get_kind_name_id(entity):
         kind = entity['kind2']
     elif entity['isNative'] == 'false':
         kind = entity['tag']
-    
     # name 
     if entity['isNative'] == 'true':
         key = 'name2'
@@ -285,37 +283,10 @@ def get_kind_name_id(entity):
     elif entity['tag'] == 'image':
         key = 'imageName'
     name = entity[key]
-
     # id 
     uid = entity['id']
     
     return kind, name, uid
-
-'''
-# we want to test whether adding the entity name to the state_not_exist will get better result
-def ad_hoc_find_entity_name(entity_kind, entity_id, query_executor):
-    cypher_query = f"""
-    match (n1:{entity_kind})
-    where n1.id = '{entity_id}'
-    return n1
-    limit 1
-    """
-    records = query_executor.run_query(cypher_query)
-    entity = records[0]['n1']
-
-    if entity['isNative'] == 'true':
-        key = 'name2'
-    elif entity['isAtomic'] == 'true':
-        key = 'val'
-    elif entity['tag'] in ['nfs', 'hostPath']:
-        key = 'path'
-    elif entity['tag'] == 'container':
-        key = 'containerName'
-    elif entity['tag'] == 'image':
-        key = 'imageName' 
-    
-    return entity[key]
-'''
 
 def check_semantic(state_node, error_message, semanticAnalyzer):
     # pick fileds that are important to check
