@@ -20,7 +20,6 @@ def setup_state_semantic_analyzer():
 
     name = 'k8s-state-semantic-analyzer' + date_suffix() 
     
-    
     semanticAnalyzer = OpenAIGenericAssistant()
     semanticAnalyzer.create_assistant(instructions, name, 'gpt-4o')
     semanticAnalyzer.create_thread()
@@ -36,47 +35,8 @@ def setup_state_semantic_analyzer():
     state_rule = """For state-analysis task: In a Kubernetes system, each entity should have a corresponding STATE node which represents its existence and status. If an entity lacks a corresponding STATE node, it signifies a clear error, implying that this entity does not exist or its creation was unsuccessful. This is a fundamental principle that applies across various entities, including but not limited to, nfs (directory in Network File System), Secrets, and ConfigMaps. Therefore, as a best practice, always ensure that all entities have their respective STATE nodes to avoid such errors and maintain the system's robustness and performance."""
 
     semanticAnalyzer.add_message(state_rule)
-   
-    # works well for gpt-4
-    '''
-    task_prompt = """
-    You will receive two separate pieces of information:
-    1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example).
-    2. An error message that may or may not be associated with the k8s object.
 
-    Your task involves multiple steps:
-    - First, parse the provided JSON string to extract and examine the object's details.
-    - Focus your scrutiny on the 'spec' and 'status' fields within the JSON structure.
-        - If either the 'spec' or 'status' field is not present, direct your attention to other significant fields in the JSON that could provide valuable insight.
-    - Conduct an evaluation to determine if there are any apparent misconfigurations or errors in the JSON fields, especially those which could align with the nature of the provided error message.
-    - If the error message seems to relate to the JSON data, clarify the connection and identify any anomalies or errors in the data.
-    - If the error message appears to be unrelated to the k8s object's state, acknowledge this finding.
-    - Provide a summary of any issues discovered with the k8s JSON data. 
-
-    Proceed with these instructions when prompted with the k8s object's JSON string and error message.
-    """
-    '''
-    '''
-    # used for gpt-4o
-    task_prompt = """
-You will receive two separate pieces of information:
-1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example).
-2. An error message that may or may not be associated with the k8s object.
-
-Your task involves multiple steps:
-- Parse the provided JSON string to extract and examine the object's details, with a focus on the 'spec' and 'status' fields.
-- Determine if there are any apparent misconfigurations or errors in the JSON fields, especially those which could align with the nature of the provided error message.
-- Summarize key observations and any issues discovered with the k8s JSON data in a concise manner (limit within 200 words).
-
-Key points to include:
-1. **Key Observations**: Highlight the most relevant findings related to the error message.
-2. **Summary of Issues**: Summarize any issues discovered within the JSON data that contribute to the error message.
-
-Your analysis should solely focus on these key points and avoid a step-by-step description or restating the parsed JSON and error message.
-"""
-    '''
-
-    state_task_prompt = """For state-analysis tasks, you will receive two separate pieces of information:
+    state_task_prompt = """For state-analysis tasks: You will receive two separate pieces of information:
     1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example). 
     2. An error message that may or may not be associated with the k8s object.
 
@@ -103,7 +63,6 @@ Your analysis should solely focus on these key points and avoid a step-by-step d
     Let's label the prompt as 'state_analysis_task_prompt' for later reference."""
 
     semanticAnalyzer.add_message(state_task_prompt)
-
 
     return semanticAnalyzer
 
@@ -143,31 +102,11 @@ def find_strict_states(entityKind, entityId, timestamp):
 
 def build_report_prompt(kinds):
     # task to perform
-    '''
-    prompt_task = f"""Based on the previous analysis of {kinds}, summarize the root cause of the error message,\
-    and pinpoint out the most relevant parts. For each kind, provide a score (0~10/10) to indicate how relevant\
-    it is to the error message. Moreover, provide a resolution for the error with kubectl or bash command if appliable.\
-    Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.\
-    The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.\
-    Furthermore, provide an overall score (0~10/10) to indicate how well the conclusion (and detailed summary if needed)\
-    can explain the root cause of the error message. Also, determine if further investigation is needed.
-
-    Scoring and Investigation Criteria:
-    1. If the conclusion alone can directly explain the root cause of the error message, score it above 9/10,\
-        and set "further_investigation": False.
-    2. If the conclusion cannot solely explain the root cause, but in combination with a detailed summary,\
-        they together can explain the root cause, score it above 7/10 and set "further_investigation": False.
-    3. If the conclusion and summary can only partially explain the root cause or are merely relevant to it,\
-        score it below 5/10 and set "further_investigation": True.
-    """
-    '''
     prompt_task = """For report-generation task: Based on the previous analysis of {kinds}, summarize the root cause of the error message, and pinpoint out the most relevant parts.
 
     1. For each kind, faithfully summarize the findings based on evidences/facts only, and don't include any suspections that are not verified. Then provide a score (0~10/10) to indicate how relevant it is to the error message.
 
-    2. Moreover, provide a resolution for the error with kubectl or bash command if appliable.
-Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause.
-The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.
+    2. Moreover, provide a resolution for the error with kubectl or bash command if appliable. Note: include crucial details such as resource names, IDs, and numbers that are pertinent to understanding the cause. The kubectl/bash command should incorporate the actual resource names, or namespaces, to achieve precision in execution.
 
     3. Furthermore, provide an overall score (0~10/10) to indicate how well the conclusion (and detailed summary if needed) can explain the root cause of the error message. Also, determine if further investigation is needed.
 
@@ -176,30 +115,7 @@ The kubectl/bash command should incorporate the actual resource names, or namesp
     2. If the conclusion cannot solely explain the root cause, but in combination with a detailed summary, they together can explain the root cause, score it above 7/10 and set "further_investigation": False.
     3. If the conclusion and summary can only partially explain the root cause or are merely relevant to it, score it below 5/10 and set "further_investigation": True."""
 
-
-
     # output format
-    '''
-    prompt_output = """Format the report strictly in the following JSON structure, ensuring that the output contains only the JSON object and no additional text or explanation:
-    {
-    "summary":[
-            {
-            "kind": "<k8s object kind>",
-            "explanation": "<brief summary of the explanation, include specific evidence for the error if appliable>",
-            "relevance_score": "<relevance_score>"
-            },
-            ....
-            ]
-    "conclusion": "<summary of the overall findings>"
-    "resolution": "<actions to resolve the error, with kubectl/bash command>"
-    "overall_score": "<overall score of how much the conclusion can explain root cause of error message>"
-    "further_investigation": "<True/False>"
-    }
-
-    **Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure.**
-    """
-    '''
-    
     prompt_output = """Format the report strictly in the following JSON structure, ensuring that the output contains only the JSON object and no additional text or explanation:
     {
     "summary":[
@@ -220,9 +136,7 @@ The kubectl/bash command should incorporate the actual resource names, or namesp
     **Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure.**
     **Use the JSON format only for report-generation task, respond according to the context and requirements provided for each other specific task.**"""
 
-
     prompt = prompt_task + prompt_output
-   
     return prompt
 
 def build_report_for_empty_statepath(destKind, error_message, semanticAnalyzer):
@@ -289,27 +203,6 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
     # the report provide a summary, the path_clues provide details
     return report, path_clues
 
-
-'''
-# not used
-# there's usually only one state node for the entity node, but sometimes it can be more than one
-def check_states_existence_and_semantic(query_executor, cypher_query, semanticAnalyzer, error_message):
-    clues = []
-    records = query_executor.run_query(cypher_query)
-    # step1: check whether the STATE node exist
-    if len(records) == 0:
-        state_not_exist = 'There is not a STATE node corresponds to the Entity node' 
-        clues.append(state_not_exist)
-        print(state_not_exist)
-    # step2: check the content of STATE node with gpt4 using semantic analysis     
-    else:
-        for record in records:
-            state_node = record['n2']
-            state_node_semantic = check_semantic(state_node, error_message, semanticAnalyzer)
-            clues.append(state_node['kind'] + '(' + state_node['id'] + '): ' + state_node_semantic)
-
-    return clues
-'''
 
 # check the existence and semantic of the STATE node for an Entity node
 def check_states_of_entity(entity_kind, entity_name, entity_id, error_message, timestamp,\
