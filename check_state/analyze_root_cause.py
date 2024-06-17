@@ -35,7 +35,72 @@ def setup_state_semantic_analyzer():
     state_rule = """For state-analysis task: In a Kubernetes system, each entity should have a corresponding STATE node which represents its existence and status. If an entity lacks a corresponding STATE node, it signifies a clear error, implying that this entity does not exist or its creation was unsuccessful. This is a fundamental principle that applies across various entities, including but not limited to, nfs (directory in Network File System), Secrets, and ConfigMaps. Therefore, as a best practice, always ensure that all entities have their respective STATE nodes to avoid such errors and maintain the system's robustness and performance."""
 
     semanticAnalyzer.add_message(state_rule)
+    
+    state_task_prompt = """For state-analysis tasks: You will receive two separate pieces of information:
+    1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example).
+    2. An error message that may or may not be associated with the k8s object.
 
+    Your task is to:
+    - Determine whether the JSON data is related to the error message or not,
+    - If related, find evidence in the JSON data to explain the error message.
+
+    **Crucial Reminder:** Adhere strictly to the provided factual JSON. Do NOT fabricate any new JSON snippets or data. Your analysis must be based solely on the original JSON input.
+
+    Your task involves multiple steps:
+    1. Parse the provided JSON string to extract and examine the object's details.
+
+    2. Focus your scrutiny on the 'spec' and 'status' fields within the JSON structure.
+        - If either the 'spec' or 'status' field is not present, direct your attention to other significant fields in the JSON that could provide valuable insight.
+
+    3. Conduct an evaluation to determine if there are any evidence (i.e, misconfigurations or errors) in the JSON fields, especially those which could align with the nature of the provided error message.
+        - If the error message seems to relate to the JSON data, clarify the connection and identify any anomalies or errors in the data.
+        - If the error message appears to be unrelated to the JSON data, acknowledge this finding.
+        - **Important Rule**: Your analysis must strictly adhere to the factual data provided in the JSON string. Do NOT create or fabricate any new JSON snippets. If the provided JSON cannot explain the error message, clearly state this.
+
+    4. Summarize key observations and any issues discovered with the k8s JSON data in a concise manner (limit within 200 words).
+
+    Key points to include:
+    1. **Key Observations**: Highlight the most relevant findings ONLY based on the provided JSON data for the error message.
+    (1) Formulate each finding in a concise manner (limit within 30 words).
+    (2) Do NOT simply repeat the error message and provided JSON data.
+
+    2. **Summary of Issues**: Summarize any issues discovered within the JSON data that contribute to the error message.
+
+    3. **Relevant JSON Fragments**: Include only the most relevant parts or fragments from the k8s JSON that are crucial for understanding the issue. Keep these fragments as short as possible and put together.
+        (1) Strictly use only the data present in the JSON provided.
+            - Do NOT fabricate or create new JSON snippets; Do NOT infer values from error message.
+            - If the data does not explain the error message, state this mismatch clearly. Do NOT attempt to explain it with fake values. 
+            - We allow the mismatch between JSON data and the error message which may due to timing issue, for example, "used: limits.memory=1670Gi" in error message, but "'used': {'limits.memory': '1250Gi'}" in JSON data. 
+    
+        (2) Extract only the deepest fields directly related to the error message instead of including the full JSON structure.
+            - For example, include only the deepest fields (i.e. spec.hard.pods, status.used.pods).
+            - Do NOT infer the value from error message, stictly use the JSON data provided.
+            ```json
+            {
+                "spec": {
+                    "hard": {
+                        "pods": "40"
+                    }
+                },
+                "status": {
+                    "hard": {
+                        "pods": "40"
+                    },
+                    "used": {
+                        "pods": "40"
+                    }
+                }
+            }
+            ```
+        (3) Do not include the error message in the JSON fragments.
+
+    Your analysis should solely focus on these key points and avoid a step-by-step description or restating the parsed JSON and error message.
+
+    Proceed with these instructions when prompted with the k8s object's JSON string and error message.
+    Let's label the prompt as 'state_analysis_task_prompt' for later reference.
+    """
+
+    '''
     state_task_prompt = """For state-analysis tasks: You will receive two separate pieces of information:
     1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example). 
     2. An error message that may or may not be associated with the k8s object.
@@ -58,9 +123,10 @@ def setup_state_semantic_analyzer():
     3. **Relevant JSON Fragments**: Include only the most relevant parts or fragments from the k8s JSON that are crucial for understanding the issue. Keep these fragments as short as possible and put together. Do not fabricate or create new JSON snippets; strictly use the data provided. If the data does not explain the error, state this clearly. Do not include the error message.
     
     Your analysis should solely focus on these key points and avoid a step-by-step description or restating the parsed JSON and error message.
-    Proceed with these instructions when prompted with the k8s object's JSON string and error message.
     
+    Proceed with these instructions when prompted with the k8s object's JSON string and error message.
     Let's label the prompt as 'state_analysis_task_prompt' for later reference."""
+    '''
 
     semanticAnalyzer.add_message(state_task_prompt)
 
