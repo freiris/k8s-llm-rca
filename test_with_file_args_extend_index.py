@@ -54,6 +54,16 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
                                 and (x in native_kinds or x in external_kinds)]
     print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
     
+    # for debug
+    ''' 
+    print('~+' * 50 + '\n')
+    print('for debug ...')
+    srckind = 'Pod'
+    destkind = 'StorageClass'
+    interkinds = ['Namespace']
+    print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
+    '''
+
     metapaths = find_metapath(metagraph_query_executor, srckind, destkind, interkinds)
 
     # locator_attmpts = attmpts+1
@@ -325,21 +335,28 @@ def run(input_file, output_file, begin_index, end_index):
             destkinds.append(destkind) 
 
             result['analysis'] = list()
-            for metapath in metapaths:
-                # generate cypher query for each metapath, and run the query in neo4j to retrieve records
-                records, analysis1 = generate_query_and_get_record(metapath, error_message, namespace, timestamp, uuid,\
+            # we can not guarantee that metapaths will always exist, for example, Pod--->StorageClass has no path
+            if metapaths is None:
+                empty_metapath_analysis = {'empty_metapath': 
+                                            [{'report': 
+                                                {'conclusion': f'Can not find ANY metapath from {srckind} to {destkind}'}}]}
+                result['analysis'].append(empty_metapath_analysis)
+            else:
+                for metapath in metapaths:
+                    # generate cypher query for each metapath, and run the query in neo4j to retrieve records
+                    records, analysis1 = generate_query_and_get_record(metapath, error_message, namespace, timestamp, uuid,\
                                 cypherQueryGenerator, stategraph_query_executor )
             
-                # if no records found, there is an empty_statepath
-                if(len(records) == 0):
-                    analysis2 = investigate_empty_statepath(destkind, error_message, semanticAnalyzer)
-                else:
-                    # otherwise, investigate the entity+state in each statepath
-                    analysis2 = investigate_statepath(records, stategraph_query_executor, semanticAnalyzer)
+                    # if no records found, there is an empty_statepath
+                    if(len(records) == 0):
+                        analysis2 = investigate_empty_statepath(destkind, error_message, semanticAnalyzer)
+                    else:
+                        # otherwise, investigate the entity+state in each statepath
+                        analysis2 = investigate_statepath(records, stategraph_query_executor, semanticAnalyzer)
             
-                # merge analysis1 and analysis2
-                analysis1.update(analysis2)
-                result['analysis'].append(analysis1)
+                    # merge analysis1 and analysis2
+                    analysis1.update(analysis2)
+                    result['analysis'].append(analysis1)
 
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
@@ -358,19 +375,19 @@ def run(input_file, output_file, begin_index, end_index):
                 json_record = json.dumps(result, indent=4)
                 json_file.write(json_record + ',\n')
 
-            print('+' * 100)
+            print('+' * 100 + '\n')
             print(f'check the result in {output_file}')
             time.sleep(5)
-            print('+' * 100)
+            print('+' * 100 + '\n')
             
             # if current check can not explain the root cause, we require another new propose
             if determine_retry_simple(result['analysis']): # set False to force it to test
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
                 print('further investigation required, and prompt to retry')
-                print('+' * 100)
+                print('+' * 100 + '\n')
             else:
                 print('Not need further investigate, current check can explain the root cause')
-                print('+' * 100)
+                print('+' * 100 + '\n')
                 break
 
     # total running time
