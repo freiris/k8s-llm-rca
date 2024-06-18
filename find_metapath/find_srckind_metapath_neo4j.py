@@ -156,7 +156,11 @@ def find_metapath(query_executor, srcKind, destKind, intermediateKinds=[]):
             if len(records) == 0:
                 print('Can not find src-dest one-step path, try src-Namespace-dest path ...\n')
                 records = query_executor.run_query(query_namespace, parameters)
-    
+                # i.e, Pod--->StorageClass has no path
+                if len(records) == 0: 
+                    print('Can not find ANY src-dest path, please change another dest ...\n')
+                    return None
+
     # if there are many paths with different lenghts, we prefer the shortest paths (can be more than one path)
     minLen = min([len(record['path']) for record in records])
     #metapaths = [record['path'] for record in records if len(record['path']) == minLen]
