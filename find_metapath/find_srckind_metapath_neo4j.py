@@ -62,8 +62,11 @@ Remember to approach each situation as unique, using the information given to yo
     print(name)
     print(rootCauseLocator.assistant.id)
     print(rootCauseLocator.thread.id)
-    print(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}')
-    
+    #print(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}')
+    # for gpt-4o
+    https_prefix = 'https://platform.openai.com/playground/assistants'
+
+    print(f'{https_prefix}?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}')
 
     return rootCauseLocator
 
@@ -249,26 +252,14 @@ The predefined Kubernetes (k8s) API resource kinds and external resource kinds a
 Please note:
 - For the k8s native kinds, focus on the commonly used kinds: ['ConfigMap', 'CronJob', 'DaemonSet', 'Deployment', 'Endpoints', 'Image', 'Job', 'LimitRange', 'Namespace', 'Node', 'PersistentVolume', 'PersistentVolumeClaim', 'Pod', 'ReplicaSet', 'ResourceQuota', 'Revision', 'Secret', 'Service', 'ServiceAccount', 'StatefulSet'].
 - For the external kinds, prioritize focusing on: ['nfs', 'container', 'image', 'hostPath'].
+- Convention: k8s external kinds are always lowercase, while most k8s native kinds are capital case.
 """
 
     return prompt
 
 
 def build_prompt_template(nativeKinds, externalKinds):
-    '''
-    # limit the kinds within the k8s-api-resource and k8s-external-resource kinds in metagraph
-    prefix = f"""
-The predefined Kubernetes (k8s) API resource kinds and external resource kinds are listed below:
-- k8s API resource kinds: {nativeKinds}
-- External resource kinds: {externalKinds}
-
-Please note:
-- For the k8s native kinds, focus on the commonly used kinds: ['ConfigMap', 'CronJob', 'DaemonSet', 'Deployment', 'Endpoints', 'Image', 'Job', 'LimitRange', 'Namespace', 'Node', 'PersistentVolume', 'PersistentVolumeClaim', 'Pod', 'ReplicaSet', 'ResourceQuota', 'Revision', 'Secret', 'Service', 'ServiceAccount', 'StatefulSet'].
-- For the external kinds, prioritize focusing on: ['nfs', 'container', 'image', 'hostPath'].
-"""
-    '''
     prefix = "Refer to the predefined resource kinds list."
-
     # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
     requirement ="""Perform an analysis on the Kubernetes error message that mentions a {involved_object}.\n
 Follow these steps to prepare the analysis:\n
@@ -281,6 +272,7 @@ Guidelines:\n
 (2) The 'destKind' must be within the predefined list of resource kinds.\n
 (3) Provide only one 'destKind'; do not list multiple kinds.\n
 (4) The 'destKind' is usually different from {involved_object}, but occasionally it can be the same.\n
+(5) If the `destKind` is not a k8s API resource kind, it is an external kind and should always be in lowercase.
 
 3. Enumerate the most critical k8s API and external resources relevant to the matter within the predefined kinds.\n
 
