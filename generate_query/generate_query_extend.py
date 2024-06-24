@@ -24,8 +24,11 @@ def setup_cypher_generator():
     print(cypherQueryGenerator.assistant.id)
     print(cypherQueryGenerator.thread.id)
     
-    print(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}')
-
+    #print(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}')
+    
+    # for gpt-4o
+    https_prefix = 'https://platform.openai.com/playground/assistants'
+    print(f'{https_prefix}?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}')
 
     label_message = "Let's label the following prompt template as generation-template-1, and use it to generate cypher query later"
     cypherQueryGenerator.add_message(label_message)

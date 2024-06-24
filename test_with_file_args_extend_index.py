@@ -174,7 +174,7 @@ def investigate_statepath(records, stategraph_query_executor, semanticAnalyzer):
 def investigate_empty_statepath(destkind, error_message, semanticAnalyzer):
     # we double-checked with human-generated query, and confirm the non-existence of entity
     analysis = dict()
-    print(f'Warning: There is not an Entity node for {destkind}, which is an obvious error.')
+    print(f"Warning: There is not an Entity node for '{destkind}', which is an obvious error.")
     report, finding = build_report_for_empty_statepath(destkind, error_message, semanticAnalyzer)
     print(report)
     analysis['empty_statepath'] = list()
@@ -271,9 +271,12 @@ def run(input_file, output_file, begin_index, end_index):
     with open(log_file, 'a') as fo:
         fo.write(f"Input file: {input_file}\n")
         fo.write(f"Output file: {output_file}\n")
-        fo.write(f'https://platform.openai.com/playground?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
-        fo.write(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}\n')
-        fo.write(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}\n')
+        #https_prefix = 'https://platform.openai.com/playground'
+        # for gpt-4o
+        https_prefix = 'https://platform.openai.com/playground/assistants'
+        fo.write(f'{https_prefix}?assistant={rootCauseLocator.assistant.id}&thread={rootCauseLocator.thread.id}\n')
+        fo.write(f'{https_prefix}?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}\n')
+        fo.write(f'{https_prefix}?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}\n')
         fo.write('-' * 100 + '\n')
     
    
