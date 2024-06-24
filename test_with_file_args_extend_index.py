@@ -53,17 +53,9 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
     interkinds = [x for x in relevant_resources if (x not in [srckind, destkind])\
                                 and (x in native_kinds or x in external_kinds)]
     print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
-    
-    # for debug
-    ''' 
-    print('~+' * 50 + '\n')
-    print('for debug ...')
-    srckind = 'Pod'
-    destkind = 'StorageClass'
-    interkinds = ['Namespace']
-    print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
-    '''
-
+   
+    # metapaths is not guaranteed to be found, for example, Pod->StorageClass
+    # the proposed destkind is not reachable from srckind
     metapaths = find_metapath(metagraph_query_executor, srckind, destkind, interkinds)
 
     # locator_attmpts = attmpts+1

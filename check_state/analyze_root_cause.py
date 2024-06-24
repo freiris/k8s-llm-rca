@@ -54,8 +54,12 @@ def setup_state_semantic_analyzer():
 
     3. Conduct an evaluation to determine if there are any evidence (i.e, misconfigurations or errors) in the JSON fields, especially those which could align with the nature of the provided error message.
         - If the error message seems to relate to the JSON data, clarify the connection and identify any anomalies or errors in the data.
-        - If the error message appears to be unrelated to the JSON data, acknowledge this finding.
-        - **Important Rule**: Your analysis must strictly adhere to the factual data provided in the JSON string. Do NOT create or fabricate any new JSON snippets. If the provided JSON cannot explain the error message, clearly state this.
+        - If the error message appears to be unrelated to the JSON data, clearly acknowledge this finding.
+        - **Important Rule**: 
+        (1) Your analysis must strictly adhere to the factual data provided in the JSON string. Do NOT create or fabricate any new JSON snippets. 
+        (2) If the provided JSON cannot explain the root cause of the error message, clearly state that the JSON does not explain it. Do NOT infer the root cause from the error message, and do NOT attempt to justify or rationalize the error message.
+        (3) Report any discrepancies between the error message and the JSON object. Avoid making incorrect conclusions based on mismatched or incorrect data.
+        (4) Perform accurate calculations to validate your analysis.
 
     4. Summarize key observations and any issues discovered with the k8s JSON data in a concise manner (limit within 200 words).
 
@@ -100,34 +104,6 @@ def setup_state_semantic_analyzer():
     Let's label the prompt as 'state_analysis_task_prompt' for later reference.
     """
 
-    '''
-    state_task_prompt = """For state-analysis tasks: You will receive two separate pieces of information:
-    1. A JSON string that represents the current state of a Kubernetes (k8s) object, which varies in type (e.g., PersistentVolume is one example). 
-    2. An error message that may or may not be associated with the k8s object.
-
-    Your task involves multiple steps:
-    - Parse the provided JSON string to extract and examine the object's details.
-    
-    - Focus your scrutiny on the 'spec' and 'status' fields within the JSON structure.
-        - If either the 'spec' or 'status' field is not present, direct your attention to other significant fields in the JSON that could provide valuable insight.
-    
-    - Conduct an evaluation to determine if there are any apparent misconfigurations or errors in the JSON fields, especially those which could align with the nature of the provided error message.
-        - If the error message seems to relate to the JSON data, clarify the connection and identify any anomalies or errors in the data.
-        - If the error message appears to be unrelated to the k8s object's state, acknowledge this finding.
-        - **Crucial Rule**: Your analysis must strictly adhere to the provided factual JSON data. Do NOT create or fabricate any new JSON snippets. If the provided JSON cannot explain the error message, you must clearly state this. Under no circumstances should you invent any JSON data to explain the error message.
-
-    - Summarize key observations and any issues discovered with the k8s JSON data in a concise manner (limit within 200 words).
-    Key points to include:
-    1. **Key Observations**: Highlight the most relevant findings related to the error message.
-    2. **Summary of Issues**: Summarize any issues discovered within the JSON data that contribute to the error message.
-    3. **Relevant JSON Fragments**: Include only the most relevant parts or fragments from the k8s JSON that are crucial for understanding the issue. Keep these fragments as short as possible and put together. Do not fabricate or create new JSON snippets; strictly use the data provided. If the data does not explain the error, state this clearly. Do not include the error message.
-    
-    Your analysis should solely focus on these key points and avoid a step-by-step description or restating the parsed JSON and error message.
-    
-    Proceed with these instructions when prompted with the k8s object's JSON string and error message.
-    Let's label the prompt as 'state_analysis_task_prompt' for later reference."""
-    '''
-
     semanticAnalyzer.add_message(state_task_prompt)
 
     return semanticAnalyzer
@@ -168,7 +144,7 @@ def find_strict_states(entityKind, entityId, timestamp):
 
 def build_report_prompt(kinds):
     # task to perform
-    prompt_task = """For report-generation task: Based on the previous analysis of {kinds}, summarize the root cause of the error message, and pinpoint out the most relevant parts.
+    prompt_task = f"""For report-generation task: Based on the previous analysis of {kinds}, summarize the root cause of the error message, and pinpoint out the most relevant parts.
 
     1. For each kind, faithfully summarize the findings based on evidences/facts only, and don't include any suspections that are not verified. Then provide a score (0~10/10) to indicate how relevant it is to the error message.
 
@@ -198,9 +174,13 @@ def build_report_prompt(kinds):
     "further_investigation": "<True/False>"
     }
 
-    **The 'kind' should be strictly within the previous analyzed kinds. Do not change it to upper or lower case or make any other modifications.**
-    **Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure.**
-    **Use the JSON format only for report-generation task, respond according to the context and requirements provided for each other specific task.**"""
+    **instructions:**
+    1. Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure. Do not include any text outside the provided JSON structure.
+    2. Ensure the JSON object is complete and valid. The JSON must be formatted correctly and should be able to be parsed by a standard JSON parser.
+    3. The 'kind' should be strictly within the previous analyzed kinds. Do not change it to upper or lower case or make any other modifications.
+    4. Ensure "further_investigation" is only set to "True" or "False".
+    5. The relevance_score and overall_score should be numeric values over 10. i.e, 8/10.
+    6. Use the JSON format only for report-generation task, respond according to the context and requirements provided for each other specific task."""
 
     prompt = prompt_task + prompt_output
     return prompt
