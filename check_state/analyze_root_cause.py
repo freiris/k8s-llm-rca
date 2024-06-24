@@ -30,7 +30,10 @@ def setup_state_semantic_analyzer():
     print(name)
     print(semanticAnalyzer.assistant.id)
     print(semanticAnalyzer.thread.id)
-    print(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
+    #print(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
+    # for gpt-4o
+    https_prefix = 'https://platform.openai.com/playground/assistants'
+    print(f'{https_prefix}?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
 
     state_rule = """For state-analysis task: In a Kubernetes system, each entity should have a corresponding STATE node which represents its existence and status. If an entity lacks a corresponding STATE node, it signifies a clear error, implying that this entity does not exist or its creation was unsuccessful. This is a fundamental principle that applies across various entities, including but not limited to, nfs (directory in Network File System), Secrets, and ConfigMaps. Therefore, as a best practice, always ensure that all entities have their respective STATE nodes to avoid such errors and maintain the system's robustness and performance."""
 
@@ -144,7 +147,7 @@ def find_strict_states(entityKind, entityId, timestamp):
 
 def build_report_prompt(kinds):
     # task to perform
-    prompt_task = f"""For report-generation task: Based on the previous analysis of {kinds}, summarize the root cause of the error message, and pinpoint out the most relevant parts.
+    prompt_task = f"""For report-generation task: Based on the previous analysis of [{kinds}], summarize the root cause of the error message, and pinpoint out the most relevant parts.
 
     1. For each kind, faithfully summarize the findings based on evidences/facts only, and don't include any suspections that are not verified. Then provide a score (0~10/10) to indicate how relevant it is to the error message.
 
@@ -158,6 +161,7 @@ def build_report_prompt(kinds):
     3. If the conclusion and summary can only partially explain the root cause or are merely relevant to it, score it below 5/10 and set "further_investigation": True."""
 
     # output format
+    # use f-operator to force the kind within {kinds}
     prompt_output = """Format the report strictly in the following JSON structure, ensuring that the output contains only the JSON object and no additional text or explanation:
     {
     "summary":[
@@ -173,11 +177,11 @@ def build_report_prompt(kinds):
     "overall_score": "<overall score of how much the conclusion can explain root cause of error message>"
     "further_investigation": "<True/False>"
     }
-
+    """ + f"""
     **instructions:**
     1. Provide only the JSON object as the response without any headers, explanations, or additional information outside of the JSON structure. Do not include any text outside the provided JSON structure.
     2. Ensure the JSON object is complete and valid. The JSON must be formatted correctly and should be able to be parsed by a standard JSON parser.
-    3. The 'kind' should be strictly within the previous analyzed kinds. Do not change it to upper or lower case or make any other modifications.
+    3. The 'kind' should be strictly within the previous analyzed [{kinds}]. Do not change it to upper or lower case or make any other modifications.
     4. Ensure "further_investigation" is only set to "True" or "False".
     5. The relevance_score and overall_score should be numeric values over 10. i.e, 8/10.
     6. Use the JSON format only for report-generation task, respond according to the context and requirements provided for each other specific task."""
@@ -186,7 +190,7 @@ def build_report_prompt(kinds):
     return prompt
 
 def build_report_for_empty_statepath(destKind, error_message, semanticAnalyzer):
-    finding = f'We can not find a path for the metapath, and confirmed that there is not a {destKind} entity, which is an obvious error.'
+    finding = f"We can not find a path for the metapath, and confirmed that there is not a '{destKind}' entity, which is an obvious error."
     analysis = f'we analyzed the following error message: \n\
                 {error_message} \n\
                 and find out:\n\
