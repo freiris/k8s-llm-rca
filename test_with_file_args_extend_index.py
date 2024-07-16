@@ -213,7 +213,8 @@ def get_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer, in
 def determine_retry(analysis):
     # there can be multiple metapaths for each error_message,
     # and each metapath can correspond to one/more statepath (or empty_statepath),
-    # we only retry if ALL the metapaths can not explain the error_message 
+    # we only retry if ALL the metapaths and ALL statepaths/empty_statepaths can not explain the error_message
+    # tips: empty_metapath will not further investigate, therefore, we omit it
     for aly in analysis:
         if 'statepath' in aly:
             for x in aly['statepath']:
@@ -228,7 +229,7 @@ def determine_retry(analysis):
 # gpt-4 simplify the code
 def determine_retry_simple(analysis):
     for aly in analysis:
-        paths = aly.get('statepath', []) + aly.get('empty_statepath', [])
+        paths = aly.get('statepath', []) + aly.get('empty_statepath', []) # empty_metapath has not 'further_investigation' key
         if any(str(x['report']['further_investigation']).lower() == 'false' for x in paths):
             return False       
     return True
@@ -395,7 +396,7 @@ def run(input_file, output_file, begin_index, end_index):
             print('+' * 100 + '\n')
             
             # if current check can not explain the root cause, we require another new propose
-            if determine_retry_simple(result['analysis']): # set False to force it to test
+            if determine_retry_simple(result['analysis']): # we can set 'False' to force it to test
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
                 print('further investigation required, and prompt to retry')
                 print('+' * 100 + '\n')
