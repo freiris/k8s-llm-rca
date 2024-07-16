@@ -298,7 +298,17 @@ def run(input_file, output_file, begin_index, end_index):
     start_time = time.time()
     
     # for each error_message, we propose at most 3 check plans
+    refresh_counter = 1
     for row in rows[begin_index: end_index]:
+        # refresh rootCauseLocator context for every 10 rows
+        # to avoid bad prediction after a long time, which may stem from the long-memory-decay
+        if refresh_counter % 10  == 0:
+            print('reset')
+            rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction.")
+            rootCauseLocator.add_message(pre_defined_kinds_prompt)
+        
+        refresh_counter = (refresh_counter + 1) % 10
+
         # already proposed destkind, used for retry
         destkinds = list() 
         for attempt in range(3):
@@ -330,6 +340,7 @@ def run(input_file, output_file, begin_index, end_index):
             destkinds.append(destkind) 
 
             result['analysis'] = list()
+            visited_nodes_list = list()
             # we can not guarantee that metapaths will always exist, for example, Pod--->StorageClass has no path
             if metapaths is None:
                 empty_metapath_analysis = {'empty_metapath': 
@@ -338,6 +349,12 @@ def run(input_file, output_file, begin_index, end_index):
                 result['analysis'].append(empty_metapath_analysis)
             else:
                 for metapath in metapaths:
+                    # todo: check the list to determine whether the entity-kind in metapath has been visited in statepath 
+                    # if visited, we skip this metapath to avoid similar metapaths stem from multiple-edge
+                    # i.e, Event->Job->Pod->ServiceAccount, both spec_serviceAccount and spec_serviceAccountName for the last edge
+                    if metapath.nodes in visited_nodes_list:
+                        continue
+
                     # generate cypher query for each metapath, and run the query in neo4j to retrieve records
                     records, analysis1 = generate_query_and_get_record(metapath, error_message, namespace, timestamp, uuid,\
                                 cypherQueryGenerator, stategraph_query_executor )
@@ -348,7 +365,9 @@ def run(input_file, output_file, begin_index, end_index):
                     else:
                         # otherwise, investigate the entity+state in each statepath
                         analysis2 = investigate_statepath(records, stategraph_query_executor, semanticAnalyzer)
-            
+                        # todo: add the visited entity-kind to a list
+                        visited_nodes_list.append(metapath.nodes)
+
                     # merge analysis1 and analysis2
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
