@@ -179,12 +179,13 @@ def find_metapath(query_executor, srcKind, destKind, intermediateKinds=[]):
     return metapaths
 
 # we will remove these two keys later in metagraph and stategraph
+# we temporally discard 'spec_volumes_nfs_path' for Pod->nfs, which will output Pod->nfs->PV->PVC metapath (later to optimize)
 def ad_hoc_filter_keys(records):
     res = []
     for record in records:
         discard = False
         for rel in record.relationships:
-            if rel['key'] in ['spec_containers_envFrom_configMapRef_name', 'spec_containers_envFrom_secretRef_name']:
+            if rel['key'] in ['spec_containers_envFrom_configMapRef_name', 'spec_containers_envFrom_secretRef_name', 'spec_volumes_nfs_path']:
                 discard = True
                 print(f"we will discard {rel['key']} \n")
                 break
