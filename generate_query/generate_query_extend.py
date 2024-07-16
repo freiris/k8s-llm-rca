@@ -99,15 +99,62 @@ def run_and_filter_query(query_executor, cypher_query):
     if len(records) == 1:
         res = records
     else:
+        # strictly compatible
         for record in records:
-            if message_compatible(record):
+            if message_compatible_strict(record):
                 res.append(record)
-    
+        if len(res) == 0:
+            # loosely compatible
+            for record in records:
+                if message_compatile_loose(record):
+                    res.append(record)
+        
     if len(res) == 0:
         print('Warning: ALL records are not message compatible')
     
     return res
 
+
+def message_compatible_strict(record):
+    # message
+    for ele in record: 
+        if ele['kind'] == 'Event':
+            message = ele['message'] 
+    # by default, dest is the last element
+    dest = record[len(record)-1]
+    # check if the name is in the message
+    if dest['isNative'] == 'true':
+        k1 = 'name2'
+    elif dest['isAtomic'] == 'true':
+        k1 = 'val'
+    elif dest['tag'] in ['nfs', 'hostPath']:
+        k1 = 'path'
+    elif dest['tag'] == 'container':
+        k1 = 'containerName'
+    elif dest['tag'] == 'image':
+        k1 = 'imageName'
+    
+    return (dest[k1] in message)
+
+def message_compatible_loose(record):
+    #message = record[2]['message']
+    for ele in record:
+        if ele['kind'] == 'Event':
+            message = ele['message']
+    # by default, dest is the last element
+    dest = record[len(record)-1] 
+
+    # check if the kind is in the message
+    if dest['isNative'] == 'true':
+        k2 = 'kind2'
+    elif dest['isNative'] == 'false':
+        k2 = 'tag'
+    
+    # we expect exactly match, don't compare with lower case.
+    # otherwise, the kind checking is too loose
+    return (dest[k2] in message)
+
+'''
 def message_compatible(record):
     #message = record[2]['message']
     for ele in record:
@@ -137,7 +184,7 @@ def message_compatible(record):
     # otherwise, the kind checking is too loose
 
     return (dest[k1] in message) or (dest[k2] in message)
-   
+'''   
 
 
 # we find that if we only match the 'uuid' to determine the EVENT, the generated query runs slowly,
