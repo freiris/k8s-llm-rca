@@ -14,7 +14,7 @@ from neo4j import GraphDatabase
 from common.neo4j_query_executor import Neo4jQueryExecutor
 from common.openai_generic_assistant import OpenAIGenericAssistant
 
-from find_metapath.find_srckind_metapath_neo4j import *
+from find_metapath.find_srckind_destkind_metapath import *
 from generate_query.generate_query import *
 from check_state.analyze_root_cause import *
 

@@ -213,8 +213,7 @@ def get_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer, in
 def determine_retry(analysis):
     # there can be multiple metapaths for each error_message,
     # and each metapath can correspond to one/more statepath (or empty_statepath),
-    # we only retry if ALL the metapaths and ALL statepaths/empty_statepaths can not explain the error_message
-    # tips: empty_metapath will not further investigate, therefore, we omit it
+    # we only retry if ALL the metapaths can not explain the error_message 
     for aly in analysis:
         if 'statepath' in aly:
             for x in aly['statepath']:
@@ -229,7 +228,7 @@ def determine_retry(analysis):
 # gpt-4 simplify the code
 def determine_retry_simple(analysis):
     for aly in analysis:
-        paths = aly.get('statepath', []) + aly.get('empty_statepath', []) # empty_metapath has not 'further_investigation' key
+        paths = aly.get('statepath', []) + aly.get('empty_statepath', [])
         if any(str(x['report']['further_investigation']).lower() == 'false' for x in paths):
             return False       
     return True
@@ -299,17 +298,7 @@ def run(input_file, output_file, begin_index, end_index):
     start_time = time.time()
     
     # for each error_message, we propose at most 3 check plans
-    refresh_counter = 1
     for row in rows[begin_index: end_index]:
-        # refresh rootCauseLocator context for every 10 rows
-        # to avoid bad prediction after a long time, which may stem from the long-memory-decay
-        if refresh_counter % 10  == 0:
-            print('reset')
-            rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction.")
-            rootCauseLocator.add_message(pre_defined_kinds_prompt)
-        
-        refresh_counter = (refresh_counter + 1) % 10
-
         # already proposed destkind, used for retry
         destkinds = list() 
         for attempt in range(3):
@@ -341,7 +330,6 @@ def run(input_file, output_file, begin_index, end_index):
             destkinds.append(destkind) 
 
             result['analysis'] = list()
-            visited_nodes_list = list()
             # we can not guarantee that metapaths will always exist, for example, Pod--->StorageClass has no path
             if metapaths is None:
                 empty_metapath_analysis = {'empty_metapath': 
@@ -350,12 +338,6 @@ def run(input_file, output_file, begin_index, end_index):
                 result['analysis'].append(empty_metapath_analysis)
             else:
                 for metapath in metapaths:
-                    # todo: check the list to determine whether the entity-kind in metapath has been visited in statepath 
-                    # if visited, we skip this metapath to avoid similar metapaths stem from multiple-edge
-                    # i.e, Event->Job->Pod->ServiceAccount, both spec_serviceAccount and spec_serviceAccountName for the last edge
-                    if metapath.nodes in visited_nodes_list:
-                        continue
-
                     # generate cypher query for each metapath, and run the query in neo4j to retrieve records
                     records, analysis1 = generate_query_and_get_record(metapath, error_message, namespace, timestamp, uuid,\
                                 cypherQueryGenerator, stategraph_query_executor )
@@ -366,9 +348,7 @@ def run(input_file, output_file, begin_index, end_index):
                     else:
                         # otherwise, investigate the entity+state in each statepath
                         analysis2 = investigate_statepath(records, stategraph_query_executor, semanticAnalyzer)
-                        # todo: add the visited entity-kind to a list
-                        visited_nodes_list.append(metapath.nodes)
-
+            
                     # merge analysis1 and analysis2
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
@@ -396,7 +376,7 @@ def run(input_file, output_file, begin_index, end_index):
             print('+' * 100 + '\n')
             
             # if current check can not explain the root cause, we require another new propose
-            if determine_retry_simple(result['analysis']): # we can set 'False' to force it to test
+            if determine_retry_simple(result['analysis']): # set False to force it to test
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
                 print('further investigation required, and prompt to retry')
                 print('+' * 100 + '\n')
