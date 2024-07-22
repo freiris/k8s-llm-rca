@@ -13,7 +13,8 @@ from openai import AzureOpenAI
 from neo4j import GraphDatabase
 
 from common.neo4j_query_executor import Neo4jQueryExecutor
-from common.openai_generic_assistant import OpenAIGenericAssistant
+#from common.openai_generic_assistant import OpenAIGenericAssistant
+from common.azure_openai_generic_assistant import OpenAIGenericAssistant
 
 from find_metapath.find_srckind_destkind_metapath import *
 from generate_query.generate_query_extend import *
