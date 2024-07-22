@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from common.openai_generic_assistant import OpenAIGenericAssistant
+#from common.openai_generic_assistant import OpenAIGenericAssistant
+from common.azure_openai_generic_assistant import OpenAIGenericAssistant
 
 from datetime import datetime
 
@@ -14,7 +15,9 @@ def setup_cypher_generator():
     name = "cypher-query-generator" + date_suffix()
 
     cypherQueryGenerator = OpenAIGenericAssistant()
-    cypherQueryGenerator.create_assistant(instructions, name, 'gpt-4o')
+    #cypherQueryGenerator.create_assistant(instructions, name, 'gpt-4o')
+    # use azure gpt-4o deployment
+    cypherQueryGenerator.create_assistant(instructions, name, 'xiangyong-gpt-4o')
     cypherQueryGenerator.create_thread()
 
     #cypherQueryGenerator.retrieve_assistant(assistant_id='asst_E5D7WuCNELjYtYQgMdnABOvE')
@@ -27,7 +30,8 @@ def setup_cypher_generator():
     #print(f'https://platform.openai.com/playground?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}')
     
     # for gpt-4o
-    https_prefix = 'https://platform.openai.com/playground/assistants'
+    #https_prefix = 'https://platform.openai.com/playground/assistants'
+    https_prefix = 'https://oai.azure.com/portal/9be961fed7ab4b58b2e7bfd101fa56a3/assistants'
     print(f'{https_prefix}?assistant={cypherQueryGenerator.assistant.id}&thread={cypherQueryGenerator.thread.id}')
 
     label_message = "Let's label the following prompt template as generation-template-1, and use it to generate cypher query later"

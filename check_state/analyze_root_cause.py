@@ -21,7 +21,8 @@ def setup_state_semantic_analyzer():
     name = 'k8s-state-semantic-analyzer' + date_suffix() 
     
     semanticAnalyzer = OpenAIGenericAssistant()
-    semanticAnalyzer.create_assistant(instructions, name, 'gpt-4o')
+    #semanticAnalyzer.create_assistant(instructions, name, 'gpt-4o')
+    semanticAnalyzer.create_assistant(instructions, name, 'xiangyong-gpt-4o')
     semanticAnalyzer.create_thread()
    
     #semanticAnalyzer.retrieve_assistant(assistant_id='asst_N6J0RvH9T5ZowQCJnGGgKFng')
@@ -32,7 +33,9 @@ def setup_state_semantic_analyzer():
     print(semanticAnalyzer.thread.id)
     #print(f'https://platform.openai.com/playground?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
     # for gpt-4o
-    https_prefix = 'https://platform.openai.com/playground/assistants'
+    #https_prefix = 'https://platform.openai.com/playground/assistants'
+    https_prefix = 'https://oai.azure.com/portal/9be961fed7ab4b58b2e7bfd101fa56a3/assistants'
+    
     print(f'{https_prefix}?assistant={semanticAnalyzer.assistant.id}&thread={semanticAnalyzer.thread.id}')
 
     state_rule = """For state-analysis task: In a Kubernetes system, each entity should have a corresponding STATE node which represents its existence and status. If an entity lacks a corresponding STATE node, it signifies a clear error, implying that this entity does not exist or its creation was unsuccessful. This is a fundamental principle that applies across various entities, including but not limited to, nfs (directory in Network File System), Secrets, and ConfigMaps. Therefore, as a best practice, always ensure that all entities have their respective STATE nodes to avoid such errors and maintain the system's robustness and performance."""
