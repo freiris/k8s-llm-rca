@@ -110,7 +110,7 @@ def run_and_filter_query(query_executor, cypher_query):
         if len(res) == 0:
             # loosely compatible
             for record in records:
-                if message_compatile_loose(record):
+                if message_compatible_loose(record):
                     res.append(record)
         
     if len(res) == 0:
