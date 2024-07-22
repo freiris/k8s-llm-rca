@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import neo4j
-from common.openai_generic_assistant import OpenAIGenericAssistant
+#from common.openai_generic_assistant import OpenAIGenericAssistant
+from common.azure_openai_generic_assistant import OpenAIGenericAssistant
 from datetime import datetime
 
 def date_suffix():
