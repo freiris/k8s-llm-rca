@@ -187,7 +187,8 @@ def investigate_empty_statepath(destkind, error_message, semanticAnalyzer):
    
     return analysis
 
-def get_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer, inner_start_time, inner_end_time):
+'''
+def get_total_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer, inner_start_time, inner_end_time):
     # we caculate the token cost for each message,
     # including rootCauseLocator, cypherQueryGenerator and semanticAnalyzer
     tmin = int(inner_start_time)
@@ -211,6 +212,37 @@ def get_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer, in
     
     #result['token_usage_details'] = [token_usage_1, token_usage_2, token_usage_3]
     return token_usage
+'''
+
+def get_total_token_usage_new(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer,\
+        limit_rcl, limit_cqg, limit_sa, inner_start_time, inner_end_time):
+    
+    # we caculate the token cost for each message,
+    # including rootCauseLocator, cypherQueryGenerator and semanticAnalyzer
+    tmin = int(inner_start_time)
+    tmax = int(inner_end_time)
+
+    # at most 3 retries for each message
+    token_usage_1 = rootCauseLocator.get_token_usage(tmin, tmax, limit_rcl)
+    # at most 3 retries for each metapath, we find 5 metapaths at most now
+    token_usage_2 = cypherQueryGenerator.get_token_usage(tmin, tmax, limit_cqg)
+    # metapath from srckind to destkind has at most 3 edges, namely 4 nodes
+    # therefore, at most 4 STATE nodes to check for each metapath
+    token_usage_3 = semanticAnalyzer.get_token_usage(tmin, tmax, limit_sa)
+
+    token_usage = dict()
+    token_usage['prompt_tokens'] = token_usage_1['prompt_tokens'] +\
+                                    token_usage_2['prompt_tokens'] + token_usage_3['prompt_tokens']
+    token_usage['completion_tokens'] = token_usage_1['completion_tokens'] +\
+                                    token_usage_2['completion_tokens'] + token_usage_3['completion_tokens']
+    token_usage['total_tokens'] = token_usage_1['total_tokens'] +\
+                                    token_usage_2['total_tokens'] + token_usage_3['total_tokens']
+    
+    #result['token_usage_details'] = [token_usage_1, token_usage_2, token_usage_3]
+    return token_usage
+
+
+
 
 def determine_retry(analysis):
     # there can be multiple metapaths for each error_message,
@@ -318,7 +350,12 @@ def run(input_file, output_file, begin_index, end_index):
         destkinds = list() 
         for attempt in range(3):
             inner_start_time = time.time() 
-        
+            # get message counter of rootCauseLocator, cypherQueryGenerator, semanticAnalyzer
+            # currently, we do not worry about overflow
+            start_counter_rcl = rootCauseLocator.get_message_counter()
+            start_counter_cqg = cypherQueryGenerator.get_message_counter()
+            start_counter_sa = semanticAnalyzer.get_message_counter()
+
             namespace = row[0]
             error_message = row[1]
             timestamp = row[2]
@@ -380,10 +417,24 @@ def run(input_file, output_file, begin_index, end_index):
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
             result['time_cost'] = inner_end_time - inner_start_time
-        
+            
+            # get message counter of rootCauseLocator, cypherQueryGenerator, semanticAnalyzer at the end
+            # currently, we do not worry about overflow
+            end_counter_rcl = rootCauseLocator.get_message_counter()
+            end_counter_cqg = cypherQueryGenerator.get_message_counter()
+            end_counter_sa = semanticAnalyzer.get_message_counter()
+            
+            limit_rcl = end_counter_rcl - start_counter_rcl
+            limit_cqg = end_counter_cqg - start_counter_cqg
+            limit_sa = end_counter_sa - start_counter_sa
+
             # calculate the token usage 
-            result['token_usage'] = get_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer,\
-                                                inner_start_time, inner_end_time)
+            #result['token_usage'] = get_total_token_usage(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer,\
+            #                                    inner_start_time, inner_end_time)
+            
+            result['token_usage'] = get_total_token_usage_new(rootCauseLocator, cypherQueryGenerator, semanticAnalyzer,\
+                                                            limit_rcl, limit_cqg, limit_sa,\
+                                                            inner_start_time, inner_end_time)
 
             # write the result for an error_message
             # if we use multiple-line json, we should seperate each record with comma (',')
