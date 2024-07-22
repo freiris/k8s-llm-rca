@@ -337,14 +337,16 @@ def run(input_file, output_file, begin_index, end_index):
     # for each error_message, we propose at most 3 check plans
     refresh_counter = 1
     for row in rows[begin_index: end_index]:
-        # refresh rootCauseLocator context for every 10 rows
+        # refresh rootCauseLocator context for every k (i.e, 10) rows
         # to avoid bad prediction after a long time, which may stem from the long-memory-decay
-        if refresh_counter % 10  == 0:
-            print('reset')
+        refresh_interval = 10
+        if refresh_counter % refresh_interval  == 0:
+            print('Refresh the context ...\n')
             rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction.")
             rootCauseLocator.add_message(pre_defined_kinds_prompt)
-        
-        refresh_counter = (refresh_counter + 1) % 10
+            rootCauseLocator.run_assistant()
+
+        refresh_counter = (refresh_counter + 1) % refresh_interval
 
         # already proposed destkind, used for retry
         destkinds = list() 
