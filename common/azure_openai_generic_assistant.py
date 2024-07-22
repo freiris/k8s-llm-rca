@@ -28,6 +28,8 @@ class OpenAIGenericAssistant:
                 model=model,
                 #tools=[{"type": "code_interpreter"}]
         )
+        # Set message counter 
+        self.counter = 0
 
     def retrieve_assistant(self, assistant_id):
         # Retrive an existing Assistant
@@ -48,6 +50,8 @@ class OpenAIGenericAssistant:
             role="user",
             content=content
         )
+        # Increase message counter
+        self.counter += 1 
 
     def run_assistant(self, instructions=None):
         # Run the Assistant
@@ -106,6 +110,8 @@ class OpenAIGenericAssistant:
             run = self.get_run_status()
             if(run.status == 'completed'):
                 print('run completed')
+                # Increase message counter by 1, the assistant response with 1 message? YES
+                self.counter += 1
                 messages = self.get_last_k_message(num)
                 return messages
             elif (run.status == 'cancelled'):
@@ -140,4 +146,9 @@ class OpenAIGenericAssistant:
                 token_usage['total_tokens'] += run.usage.total_tokens
 
         return token_usage
+    
+    def get_message_counter(self):
+        return self.counter
 
+    def reset_message_counter(self):
+        self.counter = 0
