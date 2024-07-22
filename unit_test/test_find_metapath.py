@@ -4,14 +4,15 @@ import os
 import openai
 import time
 import json
-from openai import OpenAI
+#from openai import OpenAI
+from openai import AzureOpenAI
 from neo4j import GraphDatabase
 
 from common.neo4j_query_executor import Neo4jQueryExecutor
 #from openai_root_cause_locator import OpenAIRootCauseLocator
 #from openai_root_cause_locator import build_prompt_template
 
-from find_metapath.find_srckind_metapath_neo4j import *
+from find_metapath.find_srckind_destkind_metapath import *
 
 
 def main():

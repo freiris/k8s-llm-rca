@@ -4,11 +4,13 @@ import os
 import openai
 import time
 import json
-from openai import OpenAI
+#from openai import OpenAI
+from openai import AzureOpenAI
 from neo4j import GraphDatabase
 
 from common.neo4j_query_executor import Neo4jQueryExecutor
-from common.openai_generic_assistant import OpenAIGenericAssistant
+#from common.openai_generic_assistant import OpenAIGenericAssistant
+from common.azure_openai_generic_assistant import OpenAIGenericAssistant
 from check_state.analyze_root_cause import * 
 
 def main():
