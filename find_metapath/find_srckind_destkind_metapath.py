@@ -252,24 +252,80 @@ Please note:
 def build_prompt_template(nativeKinds, externalKinds):
     prefix = "Refer to the predefined resource kinds list."
     # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
-    requirement ="""Perform an analysis on the Kubernetes error message that mentions a {involved_object}.\n
-Follow these steps to prepare the analysis:\n
-1. Recognize the {involved_object} as the starting point of the issue.\n
+    requirement = """Analyze the following Kubernetes error message that includes the {involved_object}. Perform this analysis independently for each error message, disregarding any prior predictions.
 
-2. Determine the 'destKind' that is directly related to the problem from the predefined k8s API resource kinds and external resource kinds.\n
+Steps for the analysis:
 
-Guidelines:\n
-(1) The 'destKind' should be highly relevant to the issue. For example, if an NFS file cannot be found, 'nfs' should be identified as the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be identified as the 'destKind'. The goal is for GPT-4 to infer the most relevant 'destKind' for the problem.\n
-(2) The 'destKind' must be within the predefined list of resource kinds.\n
-(3) Provide only one 'destKind'; do not list multiple kinds.\n
-(4) The 'destKind' is usually different from {involved_object}, but occasionally it can be the same.\n
-(5) If the `destKind` is not a k8s API resource kind, it is an external kind and should always be in lowercase.
+1. Recognize the {involved_object} as the starting point of the issue.
 
-3. Enumerate the most critical k8s API and external resources relevant to the matter within the predefined kinds.\n
+2. Identify the most critical Kubernetes API and external resources relevant to the problem from the predefined resource kinds.
 
-4. Chart the primary progression from {involved_object} to 'destKind', including the most relevant resources as waypoints.\n
+3. Determine the 'destKind', which is the resource kind most directly related to the problem. The 'destKind' must also be included in the relevant resources list and be the most crucial one for the issue.
 
-5. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:\n
+Guidelines:
+(1) The 'destKind' should be the most relevant to the error message. For instance, if an NFS file cannot be found, 'nfs' should be the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be the 'destKind'.
+(2) The 'destKind' must be among the predefined resource kinds.
+(3) Provide only one 'destKind'; do not list multiple kinds.
+(4) The 'destKind' is often different from {involved_object}, but it can occasionally be the same.
+(5) If 'destKind' is not a Kubernetes API resource kind but an external kind, it should always be in lowercase.
+
+4. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:
+    ```json
+        {{\n
+            "SourceKind": {involved_object},\n
+            "DestinationKind": "destKind", // "destKind" must be from the predefined resource kinds list\n
+            "RelevantResources": ["Resource1", "Resource2", ..., {involved_object}, "destKind"],\n
+        }}\n
+    ```
+-------------
+Here's an example for clarity:
+
+Error Message:
+```
+Error creating: pods ""es-cronjob-1607245800-kmtgd"" is forbidden: exceeded quota: compute-resources-baishen1, requested: pods=1, used: pods=50, limited: pods=50
+```
+
+Sample Output:
+```json
+{{
+    "SourceKind": "Job",
+    "DestinationKind": "ResourceQuota",
+    "RelevantResources": ["Job", "Pod", "Namespace", "ResourceQuota"],
+}}
+```
+--------------
+
+Analyze the following error message ensuring 'destKind' and 'RelevantResources' are strictly limited to the provided lists. Ignore previous predictions and focus solely on the error message provided:
+
+{error_message}
+"""
+    return prefix + '\n' + requirement
+
+
+
+def build_prompt_template_2(nativeKinds, externalKinds):
+    prefix = "Refer to the predefined resource kinds list."
+    # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
+    requirement = """Analyze the following Kubernetes error message that includes the {involved_object}. Perform this analysis independently for each error message, disregarding any prior predictions.
+
+Steps for the analysis:
+
+1. Recognize the {involved_object} as the starting point of the issue.
+
+2. Identify the most critical Kubernetes API and external resources relevant to the problem from the predefined resource kinds.
+
+3. Determine the 'destKind', which is the resource kind most directly related to the problem. The 'destKind' must also be included in the relevant resources list and be the most crucial one for the issue.
+
+Guidelines:
+(1) The 'destKind' should be the most relevant to the error message. For instance, if an NFS file cannot be found, 'nfs' should be the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be the 'destKind'.
+(2) The 'destKind' must be among the predefined resource kinds.
+(3) Provide only one 'destKind'; do not list multiple kinds.
+(4) The 'destKind' is often different from {involved_object}, but it can occasionally be the same.
+(5) If 'destKind' is not a Kubernetes API resource kind but an external kind, it should always be in lowercase.
+
+4. Map the primary progression from {involved_object} to 'destKind', including the most relevant resources as waypoints.
+
+5. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:
     ```json
         {{\n
             "SourceKind": {involved_object},\n
@@ -283,7 +339,30 @@ Guidelines:\n
                             ]\n
         }}\n
     ```
-Analyze the following error message ensuring 'destKind' and 'Resources-x' are strictly limited to the provided lists:\n
-{error_message}\n
+Here's an example for clarity:
+
+Error Message:
+```
+Error creating: pods ""es-cronjob-1607245800-kmtgd"" is forbidden: exceeded quota: compute-resources-baishen1, requested: pods=1, used: pods=50, limited: pods=50
+```
+
+Sample Output:
+```json
+{{
+    "SourceKind": "Job",
+    "DestinationKind": "ResourceQuota",
+    "RelevantResources": ["Job", "Namespace", "ResourceQuota"],
+    "PrimaryPath": [
+        {{"Edge": 1, "start": "Job", "end": "Namespace"}},
+        {{"Edge": 2, "start": "Namespace", "end": "ResourceQuota"}}
+    ]
+}}
+```
+
+Analyze the following error message ensuring 'destKind' and 'RelevantResources' are strictly limited to the provided lists. Ignore previous predictions and focus solely on the error message provided:
+
+{error_message}
 """
     return prefix + '\n' + requirement
+
+
