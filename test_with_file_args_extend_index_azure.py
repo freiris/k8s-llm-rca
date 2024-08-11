@@ -57,7 +57,7 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
     interkinds = [x for x in relevant_resources if (x not in [srckind, destkind])\
                                 and (x in native_kinds or x in external_kinds)]
     print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
-   
+
     # metapaths is not guaranteed to be found, for example, Pod->StorageClass
     # the proposed destkind is not reachable from srckind
     metapaths = find_metapath(metagraph_query_executor, srckind, destkind, interkinds)
@@ -250,15 +250,15 @@ def determine_retry(analysis):
     # there can be multiple metapaths for each error_message,
     # and each metapath can correspond to one/more statepath (or empty_statepath),
     # we only retry if ALL the metapaths and ALL statepaths/empty_statepaths can not explain the error_message
-    # tips: empty_metapath will not further investigate, therefore, we omit it
+    # tips: empty_metapath does not have 'further_investigation', but we retry it by default
     for aly in analysis:
         if 'statepath' in aly:
             for x in aly['statepath']:
-                if str(x['report']['further_investigation']) in ['False', 'false']:
+                if str(x['report']['further_investigation']).lower() == 'false':
                     return False
         elif 'empty_statepath' in aly:
             for x in aly['empty_statepath']:
-                if str(x['report']['further_investigation']) in ['False', 'false']:
+                if str(x['report']['further_investigation']).lower() == 'false':
                     return False
     return True
 
@@ -342,15 +342,19 @@ def run(input_file, output_file, begin_index, end_index):
         '''
         # refresh rootCauseLocator context for every k (i.e, 10) rows
         # to avoid bad prediction after a long time, which may stem from the long-memory-decay
-        refresh_interval = 10
+        refresh_interval = 5 # or 10
         if refresh_counter % refresh_interval  == 0:
             print('Refresh the context ...\n')
             rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction.")
             rootCauseLocator.add_message(pre_defined_kinds_prompt)
             rootCauseLocator.run_assistant()
+            messages = rootCauseLocator.wait_get_last_k_message(1)
+            print(messages.data[0].content[0].text.value)
+            print('^' * 100 + '\n')
 
         refresh_counter = (refresh_counter + 1) % refresh_interval
         '''
+
         # already proposed destkind, used for retry
         destkinds = list()
         max_attempt = 3
@@ -380,7 +384,7 @@ def run(input_file, output_file, begin_index, end_index):
             # find destkind and metapaths for error_message
             srckind, destkind, metapaths, locator_attempts = get_srckind_destkind_metapaths(error_message, prompt_template,\
                         native_kinds, external_kinds, stategraph_query_executor, metagraph_query_executor,rootCauseLocator)
-            
+
             result['srckind'] = srckind
             result['destkind'] = destkind
             result['locator_attempts'] = locator_attempts
@@ -421,6 +425,7 @@ def run(input_file, output_file, begin_index, end_index):
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
             '''
+            
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
             result['time_cost'] = inner_end_time - inner_start_time
@@ -473,6 +478,7 @@ def run(input_file, output_file, begin_index, end_index):
                 rootCauseLocator.add_message(refresh_message) 
                 #rootCauseLocator.run_assistant()
                 break
+
 
     # total running time
     end_time = time.time()
