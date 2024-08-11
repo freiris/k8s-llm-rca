@@ -20,5 +20,5 @@ for i in $(seq "$low_index" "$high_index"); do
     output_file="${output_dir}/Split_Result_${i}_out-0708.json"
     
     # Run the Python script with the input and output files
-    python3 ../test_with_file_args_extend_index.py -i "$input_file" -o "$output_file" -b 0 -e 100
+    python3 ../test_with_file_args_extend_index_azure.py -i "$input_file" -o "$output_file" -b 0 -e 100
 done

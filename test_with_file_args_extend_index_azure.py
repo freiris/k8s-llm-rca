@@ -270,6 +270,16 @@ def determine_retry_simple(analysis):
             return False       
     return True
 
+def refresh_context(rootCauseLocator):
+    print('Refresh the context ...\n')
+    rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction for next error message.")
+    #rootCauseLocator.add_message(pre_defined_kinds_prompt)
+    rootCauseLocator.run_assistant()
+    messages = rootCauseLocator.wait_get_last_k_message(1)
+    print(messages.data[0].content[0].text.value)
+    print('^' * 100 + '\n')
+
+
 
 def run(input_file, output_file, begin_index, end_index):
     # show the input_file and output_file   
@@ -477,6 +487,9 @@ def run(input_file, output_file, begin_index, end_index):
                 refresh_message = "Please ignore all previous predictions and make an independent prediction for the next error message based solely on its content."
                 rootCauseLocator.add_message(refresh_message) 
                 #rootCauseLocator.run_assistant()
+                
+                # make each prediction independent
+                #refresh_context(rootCauseLocator)
                 break
 
 
