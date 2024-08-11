@@ -37,6 +37,7 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
             break
         except json.decoder.JSONDecodeError as e:
             print(f"JSON Error occurred: {str(e)}")
+            print(dest_relevant)
             exception_message = f"The dest_relavant encounters the following exception:\
                     \nJSON Error occurred: {str(e)}\
                     \nmake sure to return the output in JSON format, and put it in ```json <dest_relevant> ```"
@@ -44,6 +45,7 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
             continue
         except Exception as e:
             print(f"An unexpected error occurred: {str(e)}")
+            print(dest_relevant)
             exception_message = f"The dest_relevant encounters encounters the following exception:\
                     \nAn unexpected error occurred: {str(e)}\
                     \nBased on the exception details above, please generate a correct dest_relevant."
@@ -335,8 +337,9 @@ def run(input_file, output_file, begin_index, end_index):
     start_time = time.time()
     
     # for each error_message, we propose at most 3 check plans
-    refresh_counter = 1
+    #refresh_counter = 1
     for row in rows[begin_index: end_index]:
+        '''
         # refresh rootCauseLocator context for every k (i.e, 10) rows
         # to avoid bad prediction after a long time, which may stem from the long-memory-decay
         refresh_interval = 10
@@ -347,10 +350,11 @@ def run(input_file, output_file, begin_index, end_index):
             rootCauseLocator.run_assistant()
 
         refresh_counter = (refresh_counter + 1) % refresh_interval
-
+        '''
         # already proposed destkind, used for retry
-        destkinds = list() 
-        for attempt in range(3):
+        destkinds = list()
+        max_attempt = 3
+        for attempt in range(max_attempt):
             inner_start_time = time.time() 
             # get message counter of rootCauseLocator, cypherQueryGenerator, semanticAnalyzer
             # currently, we do not worry about overflow
@@ -382,7 +386,8 @@ def run(input_file, output_file, begin_index, end_index):
             result['locator_attempts'] = locator_attempts
             
             destkinds.append(destkind) 
-
+            
+            '''
             result['analysis'] = list()
             visited_nodes_list = list()
             # we can not guarantee that metapaths will always exist, for example, Pod--->StorageClass has no path
@@ -415,7 +420,7 @@ def run(input_file, output_file, begin_index, end_index):
                     # merge analysis1 and analysis2
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
-
+            '''
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
             result['time_cost'] = inner_end_time - inner_start_time
@@ -453,13 +458,20 @@ def run(input_file, output_file, begin_index, end_index):
             print('+' * 100 + '\n')
             
             # if current check can not explain the root cause, we require another new propose
-            if determine_retry_simple(result['analysis']): # we can set 'False' to force it to test
+            #if determine_retry_simple(result['analysis']): # we can set 'False' to force it to test
+            if True and (attempt < max_attempt-1):
+                # don't add retry_message for the last one, otherwise, it may affect the following error message
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
+                #rootCauseLocator.run_assistant()
                 print('further investigation required, and prompt to retry')
                 print('+' * 100 + '\n')
             else:
                 print('Not need further investigate, current check can explain the root cause')
                 print('+' * 100 + '\n')
+                #refresh_message = "Let's ignore the previous predictions and make independent prediction for the next error message."
+                refresh_message = "Please ignore all previous predictions and make an independent prediction for the next error message based solely on its content."
+                rootCauseLocator.add_message(refresh_message) 
+                #rootCauseLocator.run_assistant()
                 break
 
     # total running time
