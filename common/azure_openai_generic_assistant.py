@@ -19,6 +19,8 @@ class OpenAIGenericAssistant:
                     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
                     api_version="2024-05-01-preview",
                     )
+        # initialize counter
+        self.counter = 0
 
     def create_assistant(self, instructions, name, model='xiangyong-gpt-4o'):
         # Create an Assistant
