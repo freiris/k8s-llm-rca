@@ -245,7 +245,6 @@ def get_total_token_usage_new(rootCauseLocator, cypherQueryGenerator, semanticAn
 
 
 
-
 def determine_retry(analysis):
     # there can be multiple metapaths for each error_message,
     # and each metapath can correspond to one/more statepath (or empty_statepath),
@@ -354,14 +353,7 @@ def run(input_file, output_file, begin_index, end_index):
         # to avoid bad prediction after a long time, which may stem from the long-memory-decay
         refresh_interval = 5 # or 10
         if refresh_counter % refresh_interval  == 0:
-            print('Refresh the context ...\n')
-            rootCauseLocator.add_message("Let's ignore the previous predictions and refresh the context to make new independent prediction.")
-            rootCauseLocator.add_message(pre_defined_kinds_prompt)
-            rootCauseLocator.run_assistant()
-            messages = rootCauseLocator.wait_get_last_k_message(1)
-            print(messages.data[0].content[0].text.value)
-            print('^' * 100 + '\n')
-
+            refresh_context(rootCauseLocator)
         refresh_counter = (refresh_counter + 1) % refresh_interval
         '''
 
@@ -401,7 +393,7 @@ def run(input_file, output_file, begin_index, end_index):
             
             destkinds.append(destkind) 
             
-            '''
+            #'''
             result['analysis'] = list()
             visited_nodes_list = list()
             # we can not guarantee that metapaths will always exist, for example, Pod--->StorageClass has no path
@@ -434,7 +426,7 @@ def run(input_file, output_file, begin_index, end_index):
                     # merge analysis1 and analysis2
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
-            '''
+            #'''
             
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
@@ -472,24 +464,20 @@ def run(input_file, output_file, begin_index, end_index):
             time.sleep(5)
             print('+' * 100 + '\n')
             
-            # if current check can not explain the root cause, we require another new propose
-            #if determine_retry_simple(result['analysis']): # we can set 'False' to force it to test
-            if True and (attempt < max_attempt-1):
+            # if current check can not explain the root cause, we require another new proposal
+            # if True and (attempt < max_attempt-1):
+            if determine_retry_simple(result['analysis']) and (attempt < max_attempt-1):
                 # don't add retry_message for the last one, otherwise, it may affect the following error message
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
-                #rootCauseLocator.run_assistant()
                 print('further investigation required, and prompt to retry')
                 print('+' * 100 + '\n')
             else:
                 print('Not need further investigate, current check can explain the root cause')
                 print('+' * 100 + '\n')
-                #refresh_message = "Let's ignore the previous predictions and make independent prediction for the next error message."
+                # we should explicitly refresh to get better prediction, the prompt-alone is not enough
                 refresh_message = "Please ignore all previous predictions and make an independent prediction for the next error message based solely on its content."
                 rootCauseLocator.add_message(refresh_message) 
-                #rootCauseLocator.run_assistant()
                 
-                # make each prediction independent
-                #refresh_context(rootCauseLocator)
                 break
 
 
