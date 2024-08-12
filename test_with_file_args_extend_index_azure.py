@@ -21,6 +21,7 @@ from generate_query.generate_query_extend import *
 from check_state.analyze_root_cause import *
 
 
+'''
 def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds, external_kinds,\
                         stategraph_query_executor, metagraph_query_executor,rootCauseLocator):
     # find srckind in stategraph according to message, (Event)-[involvedObject_uid]->(srckind)
@@ -46,7 +47,7 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
         except Exception as e:
             print(f"An unexpected error occurred: {str(e)}")
             print(dest_relevant)
-            exception_message = f"The dest_relevant encounters encounters the following exception:\
+            exception_message = f"The dest_relevant encounters the following exception:\
                     \nAn unexpected error occurred: {str(e)}\
                     \nBased on the exception details above, please generate a correct dest_relevant."
             rootCauseLocator.add_message(exception_message)
@@ -64,7 +65,29 @@ def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds,
 
     # locator_attmpts = attmpts+1
     return srckind, destkind, metapaths, attempt+1
+'''
 
+# we move the try-exception into find_destKind_relevantResources()
+def get_srckind_destkind_metapaths(error_message, prompt_template, native_kinds, external_kinds,\
+                        stategraph_query_executor, metagraph_query_executor,rootCauseLocator):
+    # find srckind in stategraph according to message, (Event)-[involvedObject_uid]->(srckind)
+    print('test find_srcKind()')
+    srckind = find_srcKind(stategraph_query_executor, error_message)
+    
+    # find destkind and relevant_resources
+    dest_relevant, locator_attempts = find_destKind_relevantResources(error_message, srckind, prompt_template, rootCauseLocator)
+    destkind = dest_relevant['DestinationKind']
+    relevant_resources = dest_relevant['RelevantResources']
+    interkinds = [x for x in relevant_resources if (x not in [srckind, destkind])\
+                                and (x in native_kinds or x in external_kinds)]
+    
+    print(f'srckind = {srckind}, destkind = {destkind}, interkinds = {interkinds}')
+
+    # metapaths is not guaranteed to be found, for example, Pod->StorageClass
+    # the proposed destkind is not reachable from srckind
+    metapaths = find_metapath(metagraph_query_executor, srckind, destkind, interkinds)
+
+    return srckind, destkind, metapaths, locator_attempts
      
 
 def generate_query_and_get_record(metapath, error_message, namespace, timestamp, uuid,\
@@ -427,7 +450,6 @@ def run(input_file, output_file, begin_index, end_index):
                     analysis1.update(analysis2)
                     result['analysis'].append(analysis1)
             #'''
-            
             # we only keep the time cost for each message, not for the metapaths
             inner_end_time = time.time()
             result['time_cost'] = inner_end_time - inner_start_time
@@ -467,6 +489,7 @@ def run(input_file, output_file, begin_index, end_index):
             # if current check can not explain the root cause, we require another new proposal
             # if True and (attempt < max_attempt-1):
             if determine_retry_simple(result['analysis']) and (attempt < max_attempt-1):
+            #if False and (attempt < max_attempt-1): # don't retry, to test crash in NoSuchFileDir
                 # don't add retry_message for the last one, otherwise, it may affect the following error message
                 add_retry_prompt(error_message, destkinds, rootCauseLocator)
                 print('further investigation required, and prompt to retry')
