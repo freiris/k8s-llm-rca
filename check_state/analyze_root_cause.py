@@ -203,12 +203,17 @@ def build_report_for_empty_statepath(destKind, error_message, semanticAnalyzer):
     
     prompt = build_report_prompt(destKind)
     semanticAnalyzer.add_message(prompt)
-
-    print('run assistant')
-    semanticAnalyzer.run_assistant()
-    messages = semanticAnalyzer.wait_get_last_k_message(1)
-    report = messages.data[0].content[0].text.value
     
+    # ensure report is not None in best effort, if run failed, we retry it, at most 3 times
+    # possibly due to hitting the rate limit (not verified)
+    for i in range(3):
+        print('run assistant')
+        semanticAnalyzer.run_assistant()
+        messages = semanticAnalyzer.wait_get_last_k_message(1)
+        report = messages.data[0].content[0].text.value
+        if report is not None:
+            break
+
     return report, finding
 
 # the statepath is a neo4j record returned by running query for metapath
@@ -249,11 +254,15 @@ def check_statepath(query_executor, semanticAnalyzer, statepath):
     # add message and run assistant 
     semanticAnalyzer.add_message(prompt)
     
-    print('run assistant')
-    semanticAnalyzer.run_assistant()
-    messages = semanticAnalyzer.wait_get_last_k_message(1)
-    report = messages.data[0].content[0].text.value 
-    
+    # ensure report is not None in best effort, if run failed, we retry it, at most 3 times
+    for i in range(3):
+        print('run assistant')
+        semanticAnalyzer.run_assistant()
+        messages = semanticAnalyzer.wait_get_last_k_message(1)
+        report = messages.data[0].content[0].text.value 
+        if report is not None:
+            break
+
     # the report provide a summary, the path_clues provide details
     return report, path_clues
 
@@ -330,13 +339,15 @@ def check_semantic(state_node, error_message, semanticAnalyzer):
     """
     print(prompt)
    
-   # add message and run assistant 
+    # add message and run assistant, at most retry 3 times, to ensure clue is not None in best effort
     semanticAnalyzer.add_message(prompt)
-    print('run assistant')
-    semanticAnalyzer.run_assistant()
-   
-    messages = semanticAnalyzer.wait_get_last_k_message(1)
-    clue = messages.data[0].content[0].text.value
-    
+    for i in range(3):
+        print('run assistant')
+        semanticAnalyzer.run_assistant()
+        messages = semanticAnalyzer.wait_get_last_k_message(1)
+        clue = messages.data[0].content[0].text.value
+        if clue is not None:
+            break
+
     return clue
 
