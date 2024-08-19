@@ -13,6 +13,7 @@ def extract_simple_results(input_file):
             simple_result = dict()
             simple_result['error_message'] = raw_result['error_message']
             simple_result['uuid'] = raw_result['uuid']
+            # attempt is the ordering, not count, for example, 2nd attempt
             simple_result['attempt'] = raw_result['attempt']
             simple_result['locator_attempts']= raw_result['locator_attempts']
             simple_result['time_cost'] = raw_result['time_cost']
