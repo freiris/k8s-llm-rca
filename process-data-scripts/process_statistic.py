@@ -27,7 +27,8 @@ def run(input_directory, result_file):
         print(f'mode = {mode}')
         print(csv_file)
         process_file(csv_file, result_file, mode)
-            
+        print('-' * 100 + '\n')
+
     print(f"Processed {len(csv_files)} files and consolidated into {result_file}")
 
 
@@ -126,8 +127,8 @@ def process_file(input_file, output_file, mode):
         print(f'mode in process_file is {mode}')
         if mode == 'w':
             writer.writerows([output_header])
-        else:
-            writer.writerows([result])
+        # write result for both 'w' and 'a' mode
+        writer.writerows([result])
           
 
 if __name__ == "__main__":

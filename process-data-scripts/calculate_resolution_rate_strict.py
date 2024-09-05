@@ -9,28 +9,43 @@ import argparse
 
 
 # Function to process all files in a directory
-def run(input_directory, result_file):
+def run(input_directory, result_file, metric):
     json_files = glob.glob(os.path.join(input_directory, '*.json'))
 
     for i, json_file in enumerate(json_files):
         mode = 'w' if i == 0 else 'a'  # Write the header only once when in 'w' mode initially
         print(f'mode = {mode}')
         print(json_file)
-        process_file(json_file, result_file, mode)
+        process_file(json_file, result_file, metric, mode)
         print('-' * 100 + '\n')
 
     print(f"Processed {len(json_files)} files and consolidated into {result_file}")
 
 
-def process_file(input_file, output_file, mode):
+def process_file(input_file, output_file, metric, mode):
     # import json 
     with open(input_file, 'r') as fi:
         data = json.load(fi)
         
-        # only '<False>' convert to False
-        data2 = [ (x['uuid'], False if x['human_evaluation']['summary_deduces_conclusion'].lower() == '<false>' else True) for  x in data]
-      
-        # count the correct deduction that can lead to the conclusion from summary
+        # if human_label indicates True, we further check the resolution
+        if metric == 'strict':
+            false_list = ['<false>', '<none>']
+        else:
+            false_list = ['<false>']
+        
+        data_t = []
+        for x in data:
+            if x['human_label'].lower() not in false_list:
+                data_t.append(x)
+        
+        data2 = []
+        for x in data_t:
+            if x['human_evaluation']['resolution_is_helpful'].lower() == '<false>':
+                data2.append((x['uuid'], False))
+            else:
+                data2.append((x['uuid'], True))
+
+        # count the helpful resoultion for correct RCA report
         count = 0
         for x in data2:
             if x[1]:
@@ -39,9 +54,8 @@ def process_file(input_file, output_file, mode):
         total2 = len(data2)
         rate = count / total2
 
-        print(f'correct deductions, total attempts, rate: {count}, {total2}, {rate}')
+        print(f'helpful resolutions, total correct RCA report, rate: {count}, {total2}, {rate}')
 
-        
         # write result to output-file 
         file_name = os.path.basename(input_file)
         xs = file_name.split('-')
@@ -81,11 +95,19 @@ if __name__ == "__main__":
         required=True,
         help='Path to the output file'
     )
+    # Add argument for the metric type (strict or loose)
+    parser.add_argument(
+    '-m', '--metric',
+    type=str,
+    choices=['strict', 'loose'],
+    default='strict',
+    help='Choose the metric type: "strict" or "loose". Default is "strict".'
+    )
 
 
     # Parse arguments
     args = parser.parse_args()
 
     # Pass the command line arguments to main function
-    run(args.input_directory, args.output_file)
+    run(args.input_directory, args.output_file, args.metric)
 

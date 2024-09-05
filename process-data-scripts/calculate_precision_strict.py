@@ -17,26 +17,33 @@ def get_acc_value(xs):
         return [xs[0], (xs[0] or xs[1]), (xs[0] or xs[1] or xs[2])]
 
 # Function to process all files in a directory
-def run(input_directory, result_file):
+def run(input_directory, result_file, metric):
     json_files = glob.glob(os.path.join(input_directory, '*.json'))
 
     for i, json_file in enumerate(json_files):
         mode = 'w' if i == 0 else 'a'  # Write the header only once when in 'w' mode initially
         print(f'mode = {mode}')
         print(json_file)
-        process_file(json_file, result_file, mode)
+        process_file(json_file, result_file, metric, mode)
+        print('-' * 100 + '\n')
 
     print(f"Processed {len(json_files)} files and consolidated into {result_file}")
 
 
-def process_file(input_file, output_file, mode):
+def process_file(input_file, output_file, metric, mode):
     # import json 
     with open(input_file, 'r') as fi:
         data = json.load(fi)
         
-        # only '<False>' convert to False
-        data2 = [ (x['uuid'], False if x['human_label'].lower() == '<false>' else True) for  x in data]
-         
+        # '<False>' and '<none>' are treated as False
+        # '<True>' and '<True/False>' are treated as True
+        if metric == 'strict':
+            print('Use strict metric, view None as False')
+            data2 = [ (x['uuid'], False if x['human_label'].lower() in ['<false>', '<none>'] else True) for  x in data]
+        else:
+            print('Use loose metric, view None as True')
+            data2 = [ (x['uuid'], False if x['human_label'].lower() in ['<false>'] else True) for  x in data]
+
         # merge consecutive identical uuid, due to attempt>1
         data3 = [(data2[0][0], [data2[0][1]])]
         for x in data2[1:]:
@@ -118,11 +125,20 @@ if __name__ == "__main__":
         required=True,
         help='Path to the output file'
     )
+    # Add argument for the metric type (strict or loose)
+    parser.add_argument(
+    '-m', '--metric',
+    type=str,
+    choices=['strict', 'loose'],
+    default='strict',
+    help='Choose the metric type: "strict" or "loose". Default is "strict".'
+    )
+
 
 
     # Parse arguments
     args = parser.parse_args()
 
     # Pass the command line arguments to main function
-    run(args.input_directory, args.output_file)
+    run(args.input_directory, args.output_file, args.metric)
 

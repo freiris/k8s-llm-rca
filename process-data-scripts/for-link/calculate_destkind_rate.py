@@ -27,10 +27,16 @@ def process_file(input_file, output_file, mode):
     with open(input_file, 'r') as fi:
         data = json.load(fi)
         
-        # only '<False>' convert to False
-        data2 = [ (x['uuid'], False if x['human_evaluation']['summary_deduces_conclusion'].lower() == '<false>' else True) for  x in data]
-      
-        # count the correct deduction that can lead to the conclusion from summary
+        data2 = []
+        for x in data:
+            relevance = x['human_evaluation']['destkind_relavance'].lower()
+            if relevance in ['<high>', '<high/moderate/low/none>']:
+                # only care the high relevant kind
+                data2.append((x['uuid'], True))
+            else:
+                data2.append((x['uuid'], False))
+
+        # count the most relevant destkind
         count = 0
         for x in data2:
             if x[1]:
@@ -39,9 +45,8 @@ def process_file(input_file, output_file, mode):
         total2 = len(data2)
         rate = count / total2
 
-        print(f'correct deductions, total attempts, rate: {count}, {total2}, {rate}')
+        print(f'high relavant destkind, total attempts, rate: {count}, {total2}, {rate}')
 
-        
         # write result to output-file 
         file_name = os.path.basename(input_file)
         xs = file_name.split('-')

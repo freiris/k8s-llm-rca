@@ -17,6 +17,7 @@ def run(input_directory, result_file):
         print(f'mode = {mode}')
         print(json_file)
         process_file(json_file, result_file, mode)
+        print('-' * 100 + '\n')
 
     print(f"Processed {len(json_files)} files and consolidated into {result_file}")
 
@@ -57,8 +58,8 @@ def process_file(input_file, output_file, mode):
             writer = csv.writer(fo)
             if mode == 'w':
                 writer.writerows([header])
-            else:
-                writer.writerows([result]) 
+            # write result for both 'w' and 'a' mode    
+            writer.writerows([result]) 
 
 
 if __name__ == "__main__":
