@@ -127,7 +127,7 @@ def run(input_file, output_file, begin_index, end_index):
 
             print('+' * 100 + '\n')
             print(f'check the result in {output_file}')
-            time.sleep(2) # change 5 to 2 sec
+            time.sleep(5) # keep sleep 5 sec to reduce the Request-Per-Minute to Azure
             print('+' * 100 + '\n')
             
     # total running time
