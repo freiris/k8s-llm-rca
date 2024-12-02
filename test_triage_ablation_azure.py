@@ -62,11 +62,15 @@ def run(input_file, output_file, begin_index, end_index):
 
     print('find native and external kinds and build prompt template')
     native_kinds, external_kinds = find_native_external_kinds(metagraph_query_executor)
+    '''
     # we only pre_define the resource kinds once, to use fewer tokens 
     pre_defined_kinds_prompt = pre_defined_kinds(native_kinds, external_kinds)
     rootCauseLocator.add_message(pre_defined_kinds_prompt)
 
     prompt_template = build_prompt_template(native_kinds, external_kinds)
+    '''
+    # exclude the knowledge from graph and expert.
+    prompt_template = build_prompt_template_ablation()
     
     # read lines from input_file
     rows = []
