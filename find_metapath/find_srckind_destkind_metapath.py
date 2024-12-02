@@ -320,6 +320,7 @@ Guidelines:
 (3) Provide only one 'destKind'; do not list multiple kinds.
 (4) The 'destKind' is often different from {involved_object}, but it can occasionally be the same.
 (5) If 'destKind' is not a Kubernetes API resource kind but an external kind, it should always be in lowercase.
+(6) If there are multiple possible kinds, infer the best match using naming conventions. For example, if an error message mentions '-conf', it is more likely related to a ConfigMap than a PVC. Similarly, names containing '-token' or '-cert' are more likely related to Secret.
 
 4. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:
     ```json
@@ -374,6 +375,7 @@ Guidelines:
 (3) Provide only one 'destKind'; do not list multiple kinds.
 (4) The 'destKind' is often different from {involved_object}, but it can occasionally be the same.
 (5) If 'destKind' is not a Kubernetes API resource kind but an external kind, it should always be in lowercase.
+(6) If there are multiple possible kinds, infer the best match using naming conventions. For example, if an error message mentions '-conf', it is more likely related to a ConfigMap than a PVC. Similarly, names containing '-token' or '-cert' are more likely related to Secret.
 
 4. Map the primary progression from {involved_object} to 'destKind', including the most relevant resources as waypoints.
 
@@ -417,4 +419,56 @@ Analyze the following error message ensuring 'destKind' and 'RelevantResources' 
 """
     return prefix + '\n' + requirement
 
+
+###
+# for ablation study in rootCauseLocator (or Triage), without_graph_and_expert_knowledge
+def build_prompt_template_ablation():
+    # decribe the steps to perform, use {involved_object} and {error_message} as placeholders
+    requirement = """Analyze the following Kubernetes error message that includes the {involved_object}. Perform this analysis independently for each error message, disregarding any prior predictions.
+
+Steps for the analysis:
+
+1. Recognize the {involved_object} as the starting point of the issue.
+
+2. Identify the most critical Kubernetes API and external resources kinds relevant to the problem.
+
+3. Determine the 'destKind', which is the resource kind most directly related to the problem. The 'destKind' must also be included in the relevant resources list and be the most crucial one for the issue.
+
+Guidelines:
+(1) The 'destKind' should be the most relevant to the error message. For instance, if an NFS file cannot be found, 'nfs' should be the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be the 'destKind'.
+(2) Provide only one 'destKind'; do not list multiple kinds.
+(3) The 'destKind' is often different from {involved_object}, but it can occasionally be the same.
+
+4. Output the findings in JSON format encapsulated within triple backticks and the 'json' specifier for clear demarcation as a code block. Use double-quotes for JSON format. The JSON output should not contain additional descriptions and must follow the given structure:
+    ```json
+        {{\n
+            "SourceKind": {involved_object},\n
+            "DestinationKind": "destKind", \n
+            "RelevantResources": ["Resource1", "Resource2", ..., {involved_object}, "destKind"],\n
+        }}\n
+    ```
+-------------
+-------------
+Here's an example for clarity:
+
+Error Message:
+```
+Error creating: pods ""es-cronjob-1607245800-kmtgd"" is forbidden: exceeded quota: compute-resources-baishen1, requested: pods=1, used: pods=50, limited: pods=50
+```
+
+Sample Output:
+```json
+{{
+    "SourceKind": "Job",
+    "DestinationKind": "ResourceQuota",
+    "RelevantResources": ["Job", "Pod", "Namespace", "ResourceQuota"],
+}}
+```
+--------------
+
+Analyze the following error message ensuring 'destKind' and 'RelevantResources' are highly related. Ignore previous predictions and focus solely on the error message provided:
+
+{error_message}
+"""
+    return requirement
 
