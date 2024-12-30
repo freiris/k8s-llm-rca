@@ -61,7 +61,13 @@ def extend_metapath_construct_string(partial_path):
 def generate_cypher_query(metapath_str, error_message, namespace, timestamp, uuid, cypherQueryGenerator):
     # build the prompt 
     prompt = f"""
-    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclos. Return only the generated Cypher query within a code block, formatted as below:
+    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow these requirements: 
+    1. **Order Compliance:** Strictly follow the (srcKind)-[rel]->(destkind) ordering as provided, do not reverse any part.
+    2. **Clause Creation:** Ensure to create a MATCH clause for every line provided in the metapath. 
+    3. **Variable Continuity:** Maintain continuity in variables to ensure sequential access to nodes and their relationships. 
+    4. **Return Construction:** Compile all MATCH statements to accurately build the return clause that corresponds to all elements in the metapath. 
+    5. **Error Message Format:** Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclose. 
+    6. **Output Requirements:** Return only the generated Cypher query within a code block, formatted as below:
     ```cypher
     <cypher_query>
     ```
@@ -89,6 +95,30 @@ def generate_cypher_query(metapath_str, error_message, namespace, timestamp, uui
     print(f'the generated cypher query is :\n {cypher_query}\n')
 
     return cypher_query
+
+# backup for original prompt
+'''
+ prompt = f"""
+    Let's use generation-template-1 and generate a cypher query for the following example. Strictly follow the (srcKind)-[rel]->(destkind) ordering, don't reverse it. Use double-quotes ("") to enclose error message if it has any single-quote (') character, otherwise use single-quotes('') to enclos. Return only the generated Cypher query within a code block, formatted as below:
+    ```cypher
+    <cypher_query>
+    ```
+    Do not include any extraneous strings like 'generated_cypher_query'.
+    Ensure the first line inside the code block is the starting line of the Cypher query.
+
+    the provided metapath is:
+    {metapath_str}
+    the error message to filtering is:
+    {error_message}
+    the namespace to filtering is:
+    {namespace}
+    the time to filtering is:
+    {timestamp}
+    the optional uuid to filtering is:
+    {uuid}
+    """
+'''
+
 
 def extract_cypher(message_str):
     cypher_part = message_str.split('```cypher')[1].split('```')[0].strip()
