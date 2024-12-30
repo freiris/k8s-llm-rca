@@ -42,7 +42,8 @@ Remember to approach each situation as unique, using the information given to yo
 
     rootCauseLocator = OpenAIGenericAssistant()
     #rootCauseLocator.create_assistant(instructions, name, 'gpt-4o')
-    rootCauseLocator.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    #rootCauseLocator.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    rootCauseLocator.create_assistant(instructions, name) # set model name in common part only once
     rootCauseLocator.create_thread()
     
     #rootCauseLocator.retrieve_assistant(assistant_id='asst_4bnrua5ShN88m4MblGtnUSjZ')

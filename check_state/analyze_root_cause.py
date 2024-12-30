@@ -23,7 +23,8 @@ def setup_state_semantic_analyzer():
     
     semanticAnalyzer = OpenAIGenericAssistant()
     #semanticAnalyzer.create_assistant(instructions, name, 'gpt-4o')
-    semanticAnalyzer.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    #semanticAnalyzer.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    semanticAnalyzer.create_assistant(instructions, name) # set model name in common part only once
     semanticAnalyzer.create_thread()
    
     #semanticAnalyzer.retrieve_assistant(assistant_id='asst_N6J0RvH9T5ZowQCJnGGgKFng')

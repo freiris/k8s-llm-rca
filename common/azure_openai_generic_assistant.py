@@ -22,7 +22,10 @@ class OpenAIGenericAssistant:
         # initialize counter
         self.counter = 0
 
-    def create_assistant(self, instructions, name, model='xiangyong-gpt-4o'):
+    # set model name only once, currently use scope xiangyong-2 (update env in bashrc)
+    #def create_assistant(self, instructions, name, model='xiangyong-gpt-4o-retro'):
+    def create_assistant(self, instructions, name, model='xiangyong-gpt-4o-mini'):
+    #def create_assistant(self, instructions, name, model='xiangyong-gpt-4o'): # scope xiangyong
         # Create an Assistant
         self.assistant = self.client.beta.assistants.create(
                 instructions=instructions,

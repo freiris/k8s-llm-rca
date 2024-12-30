@@ -17,7 +17,8 @@ def setup_cypher_generator():
     cypherQueryGenerator = OpenAIGenericAssistant()
     #cypherQueryGenerator.create_assistant(instructions, name, 'gpt-4o')
     # use azure gpt-4o deployment
-    cypherQueryGenerator.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    #cypherQueryGenerator.create_assistant(instructions, name, 'xiangyong-gpt-4o')
+    cypherQueryGenerator.create_assistant(instructions, name) # set model name in common part only once
     cypherQueryGenerator.create_thread()
 
     #cypherQueryGenerator.retrieve_assistant(assistant_id='asst_E5D7WuCNELjYtYQgMdnABOvE')
