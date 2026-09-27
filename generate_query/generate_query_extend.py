@@ -40,7 +40,7 @@ def setup_cypher_generator():
 
     generation_template = build_generation_template()
     cypherQueryGenerator.add_message(generation_template)
-    
+
     return cypherQueryGenerator
 
 

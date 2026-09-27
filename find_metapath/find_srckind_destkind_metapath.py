@@ -285,8 +285,28 @@ def add_retry_prompt(error_message, destkinds, rootCauseLocator):
 def extract_json(message_str):
     json_part = message_str.split('```json')[1].split('```')[0].strip()
     json_data = json.loads(json_part)
+    
     return json_data
 
+# for gpt-4o-mini, clarify naming convention
+def pre_defined_kinds(nativeKinds, externalKinds):
+    prompt = f"""
+The predefined Kubernetes (k8s) API resource kinds and external resource kinds are listed below:
+- k8s API resource kinds: {nativeKinds}
+- External resource kinds: {externalKinds}
+
+Please note:
+- For the k8s native kinds, focus on the commonly used kinds: ['ConfigMap', 'CronJob', 'DaemonSet', 'Deployment', 'Endpoints', 'Image', 'Job', 'LimitRange', 'Namespace', 'Node', 'PersistentVolume', 'PersistentVolumeClaim', 'Pod', 'ReplicaSet', 'ResourceQuota', 'Revision', 'Secret', 'Service', 'ServiceAccount', 'StatefulSet'].
+- For the external kinds, prioritize focusing on: ['nfs', 'container', 'image', 'hostPath'].
+- Naming Conventions:
+(1) k8s external kinds are always lowercase, while most k8s native kinds are capital case.
+(2) Suffixes and their likely resource kinds: '-conf' is more likely a ConfigMap, while '-cert' and '-token are more likely a Secret.
+"""
+
+    return prompt
+
+
+'''
 def pre_defined_kinds(nativeKinds, externalKinds):
     prompt = f"""
 The predefined Kubernetes (k8s) API resource kinds and external resource kinds are listed below:
@@ -300,7 +320,11 @@ Please note:
 """
 
     return prompt
+'''
 
+# for gpt-4o-mini, deal with LowOnResource case
+# If there is an issue due to node resource exhaustion, 'Node' should be the 'destKind'. (too specific)
+# acting as the most likely root cause of the issue. (less specific)
 
 def build_prompt_template(nativeKinds, externalKinds):
     prefix = "Refer to the predefined resource kinds list."
@@ -313,7 +337,7 @@ Steps for the analysis:
 
 2. Identify the most critical Kubernetes API and external resources relevant to the problem from the predefined resource kinds.
 
-3. Determine the 'destKind', which is the resource kind most directly related to the problem. The 'destKind' must also be included in the relevant resources list and be the most crucial one for the issue.
+3. Determine the 'destKind', which is the resource kind most directly related to the problem, acting as the most likely root cause of the issue. The 'destKind' must also be included in the relevant resources list and be the most crucial one for the issue.
 
 Guidelines:
 (1) The 'destKind' should be the most relevant to the error message. For instance, if an NFS file cannot be found, 'nfs' should be the 'destKind'. If a quota is exceeded, 'ResourceQuota' should be the 'destKind'.
