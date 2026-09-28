@@ -1,0 +1,18 @@
+{
+  "model": "jwg/gpt-4o",
+  "input_config": "inputs/smoke.json",
+  "output_dir": "../runs",
+  "prompt_file": "../prompts/message_only_v3.txt",
+  "checker_model": null,
+  "checker_prompt_file": "../prompts/report_quality_v3.txt",
+  "checker_request_parameters": {
+    "temperature": 0,
+    "max_tokens": 1536
+  },
+  "request_parameters": {
+    "temperature": 0,
+    "max_tokens": 4096
+  },
+  "timeout_seconds": 120,
+  "max_attempts": 3
+}

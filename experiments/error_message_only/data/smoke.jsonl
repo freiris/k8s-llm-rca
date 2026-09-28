@@ -1,0 +1,2 @@
+{"sample_id":"smoke-image","error_message":"Failed to pull image \"registry.example.invalid/demo:v1\": manifest unknown"}
+{"sample_id":"smoke-scheduling","error_message":"0/3 nodes are available: 3 Insufficient memory."}

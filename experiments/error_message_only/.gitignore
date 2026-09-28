@@ -1,0 +1,6 @@
+runs/
+.env
+.venv/
+__pycache__/
+tests/__pycache__/
+data/local/

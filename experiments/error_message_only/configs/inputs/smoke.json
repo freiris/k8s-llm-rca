@@ -1,0 +1,6 @@
+{
+  "path": "../../data/smoke.jsonl",
+  "dataset": "smoke",
+  "limit": 2,
+  "limit_per_file": null
+}

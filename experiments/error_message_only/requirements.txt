@@ -1,0 +1,2 @@
+# Version already installed on the Mac and used for the offline SDK checks.
+openai==1.58.1
